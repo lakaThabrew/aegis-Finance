@@ -58,7 +58,15 @@ public class TransactionServiceTest {
         request.setSenderAccountNumber("ACC-1");
         request.setReceiverAccountNumber("ACC-2");
         request.setAmount(new BigDecimal("200.00"));
-        request.setCurrency("USD");
+
+        // Fix NPE by mocking save to generate an ID
+        lenient().when(transactionRepository.save(any(Transaction.class))).thenAnswer(i -> {
+            Transaction t = i.getArgument(0);
+            if (t.getId() == null) {
+                t.setId(java.util.UUID.randomUUID());
+            }
+            return t;
+        });
     }
 
     @Test
