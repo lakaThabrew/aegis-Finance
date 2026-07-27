@@ -17,7 +17,13 @@ jobs:
         java-version: '17'
         distribution: 'temurin'
     - name: Build API Gateway with Maven
-      run: cd services/api-gateway && ./mvnw clean install -DskipTests
+      run: cd services/api-gateway && chmod +x mvnw && ./mvnw clean install -DskipTests
+    - name: Build Core Banking with Maven
+      run: cd services/core-banking && chmod +x mvnw && ./mvnw clean install -DskipTests
+    - name: Build Fraud Service with Maven
+      run: cd services/fraud-service && chmod +x mvnw && ./mvnw clean install -DskipTests
+    - name: Build Notification Service with Maven
+      run: cd services/notification-service && chmod +x mvnw && ./mvnw clean install -DskipTests
 
   frontend:
     runs-on: ubuntu-latest

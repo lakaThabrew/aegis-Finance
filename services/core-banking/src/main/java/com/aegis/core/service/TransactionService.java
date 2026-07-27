@@ -1,0 +1,121 @@
+package com.aegis.core.service;
+
+import com.aegis.core.dto.TransferRequest;
+import com.aegis.core.entity.*;
+import com.aegis.core.repository.*;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+
+import java.math.BigDecimal;
+import java.time.LocalDateTime;
+import java.util.UUID;
+
+@Service
+public class TransactionService {
+
+    private final AccountRepository accountRepository;
+    private final TransactionRepository transactionRepository;
+    private final LedgerEntryRepository ledgerEntryRepository;
+    private final OutboxEventRepository outboxEventRepository;
+
+    public TransactionService(AccountRepository accountRepository, 
+                              TransactionRepository transactionRepository,
+                              LedgerEntryRepository ledgerEntryRepository,
+                              OutboxEventRepository outboxEventRepository) {
+        this.accountRepository = accountRepository;
+        this.transactionRepository = transactionRepository;
+        this.ledgerEntryRepository = ledgerEntryRepository;
+        this.outboxEventRepository = outboxEventRepository;
+    }
+
+    @Transactional
+    public Transaction processTransfer(TransferRequest request) {
+        if (request.getIdempotencyKey() != null) {
+            transactionRepository.findByIdempotencyKey(request.getIdempotencyKey())
+                .ifPresent(t -> { throw new RuntimeException("Duplicate transaction"); });
+        }
+
+        String acc1 = request.getSenderAccountNumber();
+        String acc2 = request.getReceiverAccountNumber();
+        
+        Account sender, receiver;
+        if (acc1.compareTo(acc2) < 0) {
+            sender = accountRepository.findByAccountNumberForUpdate(acc1).orElseThrow();
+            receiver = accountRepository.findByAccountNumberForUpdate(acc2).orElseThrow();
+        } else {
+            receiver = accountRepository.findByAccountNumberForUpdate(acc2).orElseThrow();
+            sender = accountRepository.findByAccountNumberForUpdate(acc1).orElseThrow();
+        }
+
+        if (sender.getBalance().compareTo(request.getAmount()) < 0) {
+            throw new RuntimeException("Insufficient funds");
+        }
+
+        Transaction tx = new Transaction();
+        tx.setReference("TXN-" + UUID.randomUUID().toString().substring(0, 8).toUpperCase());
+        tx.setSenderAccount(sender);
+        tx.setReceiverAccount(receiver);
+        tx.setAmount(request.getAmount());
+        tx.setIdempotencyKey(request.getIdempotencyKey());
+        
+        int riskScore = calculateMockRisk(request);
+        tx.setRiskScore(riskScore);
+        
+        if (riskScore >= 70) {
+            tx.setStatus("HELD");
+            tx.setFraudReasons("High risk score detected");
+        } else {
+            tx.setStatus("COMPLETED");
+            tx.setCompletedAt(LocalDateTime.now());
+            
+            BigDecimal senderBefore = sender.getBalance();
+            BigDecimal senderAfter = senderBefore.subtract(request.getAmount());
+            sender.setBalance(senderAfter);
+            
+            BigDecimal receiverBefore = receiver.getBalance();
+            BigDecimal receiverAfter = receiverBefore.add(request.getAmount());
+            receiver.setBalance(receiverAfter);
+
+            accountRepository.save(sender);
+            accountRepository.save(receiver);
+
+            LedgerEntry debit = new LedgerEntry();
+            debit.setTransaction(tx);
+            debit.setAccount(sender);
+            debit.setEntryType("DEBIT");
+            debit.setAmount(request.getAmount());
+            debit.setBalanceBefore(senderBefore);
+            debit.setBalanceAfter(senderAfter);
+            
+            LedgerEntry credit = new LedgerEntry();
+            credit.setTransaction(tx);
+            credit.setAccount(receiver);
+            credit.setEntryType("CREDIT");
+            credit.setAmount(request.getAmount());
+            credit.setBalanceBefore(receiverBefore);
+            credit.setBalanceAfter(receiverAfter);
+
+            ledgerEntryRepository.save(debit);
+            ledgerEntryRepository.save(credit);
+        }
+
+        transactionRepository.save(tx);
+
+        OutboxEvent event = new OutboxEvent();
+        event.setAggregateType("Transaction");
+        event.setAggregateId(tx.getId().toString());
+        event.setEventType(tx.getStatus().equals("COMPLETED") ? "TransactionPosted" : "TransferHeld");
+        
+        String payload = String.format("{\"transactionId\":\"%s\", \"status\":\"%s\", \"amount\":%s}", 
+            tx.getId(), tx.getStatus(), tx.getAmount());
+        event.setPayload(payload);
+        
+        outboxEventRepository.save(event);
+
+        return tx;
+    }
+
+    private int calculateMockRisk(TransferRequest request) {
+        return request.getAmount().compareTo(new BigDecimal("10000")) > 0 ? 85 : 10;
+    }
+}
