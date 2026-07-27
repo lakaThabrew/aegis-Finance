@@ -161,12 +161,22 @@ aegis/
 - Node.js 18+
 - Docker & Docker Compose
 
-### 1. Start Infrastructure
+### 1. Start Infrastructure (Databases, Kafka, IAM)
+
+Aegis requires PostgreSQL, Kafka, Redis, and Keycloak to run. These are all containerized for easy setup.
 
 ```bash
 cd infrastructure/docker
 docker compose up -d
 ```
+
+Once the containers are running:
+- **Kafka** will automatically create the `transaction-events` topic on the first publish.
+- **PostgreSQL** will run on port `5432`. Ensure you create the logical databases if they aren't created by default:
+  - `aegis_core` (for Core Banking)
+  - `aegis_fraud` (for Fraud Service)
+
+*Note: Flyway migrations are integrated into the Spring Boot apps. When you run the microservices, Flyway will automatically construct the tables and insert the **Demo Data** (via `V2__seed_demo_data.sql`).*
 
 ### 2. Run Backend Services
 
@@ -177,6 +187,10 @@ cd services/core-banking
 
 # Fraud Service (port 8082)
 cd services/fraud-service
+./mvnw spring-boot:run
+
+# Notification Service (port 8083)
+cd services/notification-service
 ./mvnw spring-boot:run
 
 # API Gateway (port 8080)
@@ -205,16 +219,10 @@ npm install && npm run dev
 | **Sprint 1** | Foundation — Git, Docker, CI, Keycloak, API Gateway | ✅ Complete |
 | **Sprint 2** | Banking Core — Double-Entry Ledger, Customer Dashboard, Transactions UI | ✅ Complete |
 | **Sprint 3** | Security & Fraud — Fraud Service, Security Center, Admin Portal | ✅ Complete |
-| **Sprint 4** | Enterprise Evidence — Outbox polling, Notifications, Swagger, Demo Data | ⬜ In Progress |
+| **Sprint 4** | Enterprise Evidence — Outbox polling, Notifications, Swagger, Demo Data | ✅ Complete |
 | **Sprint 5** | QA & Testing — Unit tests, Integration tests, E2E, Security testing | ⬜ Pending |
 
-### Remaining Work (Sprint 4 & 5)
-- [ ] Outbox polling → Kafka publisher
-- [ ] Notification Service (Kafka consumer)
-- [ ] Swagger/OpenAPI documentation
-- [ ] Spring Boot Actuator health/metrics endpoints
-- [ ] Polished demo seed data
-- [ ] `USER_GUIDE.md`
+### Remaining Work (Sprint 5)
 - [ ] Unit, Integration, and E2E tests
 - [ ] Security testing
 - [ ] Demo rehearsal workflow
