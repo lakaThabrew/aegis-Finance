@@ -47,7 +47,7 @@ export default function TransactionsPage() {
   };
 
   return (
-    <div className="space-y-6">
+    <div className="page-enter space-y-6">
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-bold text-white">Transactions</h1>
@@ -142,7 +142,7 @@ export default function TransactionsPage() {
       {/* Transaction Detail Drawer */}
       {selected && (
         <div className="fixed inset-0 z-50 flex items-center justify-center" style={{ background: 'rgba(0,0,0,0.6)', backdropFilter: 'blur(4px)' }}>
-          <div className="glass-strong rounded-2xl p-8 w-full max-w-md relative shadow-2xl">
+          <div className="glass-strong modal-enter rounded-2xl p-8 w-full max-w-md relative shadow-2xl">
             <button onClick={() => setSelected(null)} className="absolute top-4 right-4 text-gray-400 hover:text-white transition">
               <X className="w-5 h-5" />
             </button>

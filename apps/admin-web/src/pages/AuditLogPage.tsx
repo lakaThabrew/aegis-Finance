@@ -37,7 +37,7 @@ export default function AuditLogPage() {
   });
 
   return (
-    <div className="space-y-6">
+    <div className="page-enter space-y-6">
       <div>
         <h1 className="text-2xl font-bold text-white">Audit Log</h1>
         <p className="text-slate-400 text-sm mt-0.5">Complete chronological record of all system events.</p>

@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { ShieldAlert, Smartphone, Lock, AlertTriangle, Clock, CheckCircle2 } from 'lucide-react';
+import securityHero from '../assets/aegis-security-hero.png';
 
 const MOCK_DEVICES = [
   { id: 'd1', name: 'Chrome on Windows', trusted: true, lastSeen: '2 hours ago', location: 'Colombo, LK' },
@@ -35,11 +36,17 @@ export default function SecurityPage() {
   };
 
   return (
-    <div className="space-y-8">
+    <div className="page-enter space-y-8">
       <div>
         <h1 className="text-2xl font-bold text-white">Security Center</h1>
         <p className="text-gray-400 text-sm mt-0.5">Monitor your account security and manage access.</p>
       </div>
+
+      <section className="relative min-h-44 overflow-hidden rounded-2xl border border-blue-400/20 bg-[#0a1531] p-6 sm:p-7">
+        <img src={securityHero} alt="Aegis layered security shield" className="visual-float absolute inset-0 h-full w-full object-cover opacity-55" />
+        <div className="absolute inset-0 bg-gradient-to-r from-[#09142e] via-[#09142e]/85 to-[#09142e]/20" />
+        <div className="relative max-w-sm"><p className="mb-2 text-xs font-bold tracking-[.18em] text-blue-200">ZERO-TRUST PROTECTION</p><h2 className="text-2xl font-bold tracking-tight text-white">Your security posture is strong.</h2><p className="mt-2 text-sm leading-6 text-blue-100/70">Aegis continuously checks your devices, transactions, and active sessions.</p></div>
+      </section>
 
       {/* Account Freeze */}
       <div className={`rounded-2xl p-6 border transition-all ${frozen ? 'bg-red-500/10 border-red-500/30' : 'glass border-gray-800'}`}>

@@ -41,7 +41,7 @@ export default function BeneficiariesPage() {
   };
 
   return (
-    <div className="space-y-6">
+    <div className="page-enter space-y-6">
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-bold text-white">Beneficiaries</h1>
@@ -57,7 +57,7 @@ export default function BeneficiariesPage() {
       </div>
 
       {/* Beneficiary Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+      <div className="stagger-in grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
         {beneficiaries.map(ben => (
           <div key={ben.id} id={`ben-${ben.id}`} className="glass rounded-2xl p-6 card-hover">
             <div className="flex items-start justify-between mb-4">
@@ -163,7 +163,7 @@ export default function BeneficiariesPage() {
 function Modal({ title, onClose, children }: { title: string; onClose: () => void; children: React.ReactNode }) {
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center" style={{ background: 'rgba(0,0,0,0.6)', backdropFilter: 'blur(4px)' }}>
-      <div className="glass-strong rounded-2xl p-8 w-full max-w-md relative shadow-2xl">
+      <div className="glass-strong modal-enter rounded-2xl p-8 w-full max-w-md relative shadow-2xl">
         <button onClick={onClose} className="absolute top-4 right-4 text-gray-400 hover:text-white transition"><X className="w-5 h-5" /></button>
         <h3 className="text-lg font-bold text-white mb-6">{title}</h3>
         {children}

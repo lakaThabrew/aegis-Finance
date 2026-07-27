@@ -1,6 +1,7 @@
 import { useState } from 'react';
-import { Wallet, TrendingUp, ArrowUpRight, ArrowDownLeft, Copy, CheckCircle2, RefreshCw } from 'lucide-react';
+import { Wallet, TrendingUp, ArrowUpRight, ArrowDownLeft, Copy, CheckCircle2, RefreshCw, ShieldCheck, Sparkles } from 'lucide-react';
 import type { Account, Transaction } from '../types';
+import securityHero from '../assets/aegis-security-hero.png';
 
 // --- Mock data (replace with API calls when backend is ready) ---
 const MOCK_ACCOUNTS: Account[] = [
@@ -52,28 +53,32 @@ export default function DashboardPage() {
   const totalBalance = accounts.reduce((s, a) => s + a.balance, 0);
 
   return (
-    <div className="space-y-8">
+    <div className="page-enter space-y-8">
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-white">Dashboard</h1>
-          <p className="text-gray-400 text-sm mt-0.5">Welcome back! Here's your financial overview.</p>
+          <p className="mb-1 text-[11px] font-bold tracking-[.18em] text-blue-300">PERSONAL OVERVIEW</p>
+          <h1 className="text-3xl font-bold tracking-tight text-white">Good morning, Alex.</h1>
+          <p className="mt-1 text-sm text-slate-400">Everything is secure. Here is your financial pulse.</p>
         </div>
-        <button className="flex items-center gap-2 px-4 py-2 rounded-xl glass text-sm text-gray-300 hover:text-white transition">
+        <button className="glass flex items-center gap-2 rounded-xl px-4 py-2 text-sm text-slate-300 transition hover:text-white">
           <RefreshCw className="w-4 h-4" /> Refresh
         </button>
       </div>
 
       {/* Total Balance Card */}
-      <div className="relative rounded-2xl overflow-hidden p-8 bg-gradient-to-br from-blue-600 via-indigo-600 to-purple-700 shadow-2xl">
+      <div className="relative overflow-hidden rounded-[1.5rem] border border-blue-300/25 bg-gradient-to-br from-[#2862d6] via-[#4254c9] to-[#6a43ba] p-7 shadow-[0_24px_48px_rgba(32,59,163,.3)] sm:p-9">
         <div className="absolute inset-0 bg-[url('data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMjAwIiBoZWlnaHQ9IjIwMCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48ZGVmcz48cGF0dGVybiBpZD0iZyIgcGF0dGVyblVuaXRzPSJ1c2VyU3BhY2VPblVzZSIgd2lkdGg9IjQwIiBoZWlnaHQ9IjQwIj48cGF0aCBkPSJNMCA0MCBMNDAgMCBNLTEwIDEwIEwxMCAtMTAgTTMwIDUwIEw1MCAzMCIgc3Ryb2tlPSJyZ2JhKDI1NSwyNTUsMjU1LDAuMDUpIiBzdHJva2Utd2lkdGg9IjEiLz48L3BhdHRlcm4+PC9kZWZzPjxyZWN0IHdpZHRoPSIyMDAiIGhlaWdodD0iMjAwIiBmaWxsPSJ1cmwoI2cpIi8+PC9zdmc+')] opacity-40" />
+        <div className="absolute right-[-2rem] top-[-3rem] h-52 w-52 rounded-full border border-white/15 bg-white/10" />
+        <div className="absolute bottom-[-8rem] right-[15%] h-52 w-52 rounded-full border border-white/10" />
+        <img src={securityHero} alt="Aegis security shield" className="visual-float pointer-events-none absolute -right-8 -top-12 hidden h-[19rem] w-[28rem] object-cover opacity-35 mix-blend-screen md:block" />
         <div className="relative z-10">
-          <div className="flex items-center gap-2 text-blue-200 mb-2">
+          <div className="mb-7 flex items-center justify-between"><div className="flex items-center gap-2 text-blue-100">
             <Wallet className="w-4 h-4" />
             <span className="text-sm font-medium">Total Portfolio Balance</span>
-          </div>
-          <p className="text-5xl font-bold text-white tracking-tight">{formatCurrency(totalBalance)}</p>
-          <div className="flex items-center gap-1.5 mt-3 text-emerald-300 text-sm">
+          </div><span className="flex items-center gap-1.5 rounded-full border border-emerald-200/20 bg-emerald-300/10 px-3 py-1 text-xs font-medium text-emerald-100"><ShieldCheck className="h-3.5 w-3.5" />Protected</span></div>
+          <p className="text-4xl font-bold tracking-tight text-white sm:text-5xl">{formatCurrency(totalBalance)}</p>
+          <div className="mt-3 flex items-center gap-1.5 text-sm text-emerald-200">
             <TrendingUp className="w-4 h-4" />
             <span>+2.4% from last month</span>
           </div>
@@ -81,9 +86,8 @@ export default function DashboardPage() {
       </div>
 
       {/* Account Cards */}
-      <div>
-        <h2 className="text-lg font-semibold text-white mb-4">Your Accounts</h2>
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+      <div><div className="mb-4 flex items-center justify-between"><div><h2 className="text-lg font-semibold text-white">Your accounts</h2><p className="text-xs text-slate-500">Select an account to view its activity</p></div><Sparkles className="h-4 w-4 text-violet-300" /></div>
+        <div className="stagger-in grid grid-cols-1 gap-4 md:grid-cols-2">
           {accounts.map(acc => (
             <div
               key={acc.id}

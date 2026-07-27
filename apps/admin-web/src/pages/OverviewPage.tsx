@@ -1,4 +1,5 @@
 import { Activity, AlertTriangle, DollarSign, ShieldAlert, TrendingUp, ArrowUpRight } from 'lucide-react';
+import fraudRadarHero from '../assets/fraud-radar-hero.png';
 
 const STATS = [
   { label: 'Total Transactions', value: '1,247', change: '+12%', icon: Activity, color: 'text-blue-400', bg: 'bg-blue-500/15 border-blue-500/30' },
@@ -22,15 +23,16 @@ const SEV_STYLE: Record<string, string> = {
 
 export default function OverviewPage() {
   return (
-    <div className="space-y-8">
+    <div className="page-enter space-y-8">
       {/* Header */}
-      <div>
-        <h1 className="text-2xl font-bold text-white">Admin Overview</h1>
-        <p className="text-slate-400 text-sm mt-0.5">Real-time monitoring dashboard for Aegis Finance.</p>
-      </div>
+      <section className="relative min-h-56 overflow-hidden rounded-3xl border border-rose-400/20 bg-[#151124] p-7 sm:p-9">
+        <img src={fraudRadarHero} alt="Fraud monitoring radar network" className="visual-float absolute inset-0 h-full w-full object-cover opacity-75" />
+        <div className="absolute inset-0 bg-gradient-to-r from-[#151124] via-[#151124]/90 to-[#151124]/15" />
+        <div className="relative max-w-md"><p className="mb-2 text-xs font-bold tracking-[.18em] text-rose-200">FRAUD OPERATIONS CENTER</p><h1 className="text-3xl font-bold tracking-tight text-white sm:text-4xl">Stay ahead of every signal.</h1><p className="mt-3 text-sm leading-6 text-rose-100/70">Review high-risk activity, protect customers, and preserve ledger integrity in real time.</p><span className="soft-pulse mt-5 inline-flex items-center gap-2 rounded-full border border-emerald-400/20 bg-emerald-400/10 px-3 py-1.5 text-xs font-semibold text-emerald-200"><span className="h-1.5 w-1.5 rounded-full bg-emerald-400" />Live monitoring active</span></div>
+      </section>
 
       {/* Stats Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+      <div className="stagger-in grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-4">
         {STATS.map(({ label, value, change, icon: Icon, color, bg }) => (
           <div key={label} className="glass rounded-2xl p-6 card-hover">
             <div className="flex items-start justify-between mb-4">

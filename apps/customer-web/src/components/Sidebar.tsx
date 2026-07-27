@@ -14,22 +14,23 @@ export default function Sidebar() {
   const { logout } = useAuth();
 
   return (
-    <aside className="w-64 glass border-r border-gray-800 flex flex-col min-h-screen shrink-0">
+    <aside className="glass sticky top-0 hidden h-screen w-72 shrink-0 flex-col border-r border-white/8 lg:flex">
       {/* Logo */}
-      <div className="p-6 border-b border-gray-800">
+      <div className="border-b border-white/8 p-7">
         <div className="flex items-center gap-3">
-          <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center shadow-lg">
+          <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-br from-blue-400 to-violet-600 shadow-lg shadow-indigo-500/30">
             <Shield className="w-5 h-5 text-white" />
           </div>
           <div>
-            <p className="font-bold text-white leading-none">Aegis</p>
-            <p className="text-xs text-gray-400">Finance</p>
+            <p className="font-bold leading-none text-white">Aegis</p>
+            <p className="mt-1 text-[10px] font-semibold tracking-[.18em] text-blue-300">FINANCE</p>
           </div>
         </div>
       </div>
 
       {/* Nav Links */}
-      <nav className="flex-1 p-4 space-y-1">
+      <nav className="flex-1 space-y-1 p-5">
+        <p className="mb-3 px-3 text-[10px] font-bold tracking-[.18em] text-slate-500">BANKING SPACE</p>
         {nav.map(({ label, icon: Icon, href }) => {
           const active = location.pathname === href;
           return (
@@ -39,8 +40,8 @@ export default function Sidebar() {
               id={`nav-${label.toLowerCase().replace(/\s/g, '-')}`}
               className={`flex items-center gap-3 px-4 py-2.5 rounded-xl text-sm font-medium transition-all group
                 ${active
-                  ? 'bg-blue-500/20 text-blue-400 border border-blue-500/30'
-                  : 'text-gray-400 hover:bg-white/5 hover:text-white'
+                  ? 'border border-blue-400/20 bg-gradient-to-r from-blue-500/20 to-violet-500/10 text-blue-200 shadow-[0_8px_20px_rgba(35,84,200,.12)]'
+                  : 'text-slate-400 hover:bg-white/5 hover:text-white'
                 }`}
             >
               <Icon className="w-4 h-4 shrink-0" />
@@ -52,7 +53,8 @@ export default function Sidebar() {
       </nav>
 
       {/* Notifications + Logout */}
-      <div className="p-4 border-t border-gray-800 space-y-2">
+      <div className="space-y-2 border-t border-white/8 p-5">
+        <div className="mb-3 rounded-xl border border-emerald-400/10 bg-emerald-400/[.06] p-3"><p className="text-[10px] font-bold tracking-[.14em] text-emerald-300">SYSTEM STATUS</p><p className="mt-1 flex items-center gap-1.5 text-xs text-slate-300"><span className="h-1.5 w-1.5 rounded-full bg-emerald-400" />All services secure</p></div>
         <button className="flex items-center gap-3 px-4 py-2.5 w-full rounded-xl text-sm text-gray-400 hover:bg-white/5 hover:text-white transition">
           <Bell className="w-4 h-4" />
           Notifications

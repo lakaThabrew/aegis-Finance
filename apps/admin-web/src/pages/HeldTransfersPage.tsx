@@ -55,7 +55,7 @@ export default function HeldTransfersPage() {
   const resolved = transfers.filter(t => t.status !== 'HELD');
 
   return (
-    <div className="space-y-8">
+    <div className="page-enter space-y-8">
       <div>
         <h1 className="text-2xl font-bold text-white">Held Transfers</h1>
         <p className="text-slate-400 text-sm mt-0.5">Review flagged transactions and approve or reject them.</p>
@@ -177,7 +177,7 @@ export default function HeldTransfersPage() {
       {/* Detail Modal */}
       {selected && (
         <div className="fixed inset-0 z-50 flex items-center justify-center" style={{ background: 'rgba(0,0,0,0.7)', backdropFilter: 'blur(4px)' }}>
-          <div className="glass-strong rounded-2xl p-8 w-full max-w-lg relative shadow-2xl">
+          <div className="glass-strong modal-enter rounded-2xl p-8 w-full max-w-lg relative shadow-2xl">
             <button onClick={() => setSelected(null)} className="absolute top-4 right-4 text-slate-400 hover:text-white transition">
               <X className="w-5 h-5" />
             </button>
