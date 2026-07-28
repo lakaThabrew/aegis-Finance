@@ -11,6 +11,7 @@ import java.util.UUID;
 public interface AccountRepository extends JpaRepository<Account, UUID> {
     
     Optional<Account> findByAccountNumber(String accountNumber);
+    java.util.List<Account> findByCustomerId(String customerId);
 
     @Lock(LockModeType.PESSIMISTIC_WRITE)
     @Query("SELECT a FROM Account a WHERE a.accountNumber = :accountNumber")
