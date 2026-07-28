@@ -123,7 +123,7 @@ export default function TransactionsPage() {
                     {isSent ? tx.receiverAccountNumber : tx.senderAccountNumber}
                   </td>
                   <td className={`px-6 py-4 text-right font-semibold ${isSent ? 'text-red-400' : 'text-emerald-400'}`}>
-                    {isSent ? '-' : '+'}{formatCurrency(tx.amount)}
+                    {isSent ? '-' : '+'}{formatCurrency(Number(tx.amount))}
                   </td>
                   <td className="px-6 py-4">
                     <span className={`px-2 py-0.5 rounded-full text-xs font-medium border ${STATUS_STYLE[tx.status]}`}>{tx.status}</span>
@@ -150,7 +150,7 @@ export default function TransactionsPage() {
             <div className="space-y-4 text-sm">
               {[
                 ['Reference', selected.reference],
-                ['Amount', formatCurrency(selected.amount)],
+                ['Amount', formatCurrency(Number(selected.amount))],
                 ['Status', selected.status],
                 ['Risk Score', selected.riskScore ?? 'N/A'],
                 ['From', selected.senderAccountNumber],

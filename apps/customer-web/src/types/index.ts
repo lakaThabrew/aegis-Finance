@@ -11,9 +11,11 @@ export interface Account {
 export interface Transaction {
   id: string;
   reference: string;
-  senderAccountNumber: string;
-  receiverAccountNumber: string;
-  amount: number;
+  senderAccountNumber?: string;
+  receiverAccountNumber?: string;
+  senderAccount?: Account;
+  receiverAccount?: Account;
+  amount: number | string;
   currency: string;
   status: 'COMPLETED' | 'HELD' | 'REJECTED';
   riskScore?: number;

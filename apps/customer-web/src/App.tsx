@@ -13,7 +13,12 @@ function ProtectedRoute({ children }: { children: React.ReactNode }) {
 }
 
 function AppRoutes() {
-  const { isAuthenticated } = useAuth();
+  const { isAuthenticated, isInitialized } = useAuth();
+  
+  if (!isInitialized) {
+    return <div className="min-h-screen flex items-center justify-center bg-[#060a16] text-white">Initializing Secure Environment...</div>;
+  }
+  
   return (
     <Routes>
       <Route path="/login" element={isAuthenticated ? <Navigate to="/dashboard" replace /> : <LoginPage />} />
