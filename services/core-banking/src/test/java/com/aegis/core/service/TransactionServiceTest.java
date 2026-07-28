@@ -133,4 +133,38 @@ public class TransactionServiceTest {
         assertEquals("Insufficient funds", exception.getMessage());
         verify(transactionRepository, never()).save(any());
     }
+
+    @Test
+    void shouldThrowExceptionIfDuplicateIdempotencyKey() {
+        // Arrange
+        request.setIdempotencyKey("idemp-key-123");
+        when(transactionRepository.findByIdempotencyKey("idemp-key-123")).thenReturn(Optional.of(new Transaction()));
+
+        // Act & Assert
+        Exception exception = assertThrows(RuntimeException.class, () -> {
+            transactionService.processTransfer(request);
+        });
+
+        assertEquals("Duplicate transaction", exception.getMessage());
+        verify(accountRepository, never()).save(any());
+        verify(transactionRepository, never()).save(any());
+    }
+
+    @Test
+    void shouldProcessTransferSuccessfullyWhenIdempotencyKeyProvided() {
+        // Arrange
+        request.setIdempotencyKey("idemp-key-456");
+        when(transactionRepository.findByIdempotencyKey("idemp-key-456")).thenReturn(Optional.empty());
+        when(accountRepository.findByAccountNumberForUpdate("ACC-1")).thenReturn(Optional.of(senderAccount));
+        when(accountRepository.findByAccountNumberForUpdate("ACC-2")).thenReturn(Optional.of(receiverAccount));
+
+        // Act
+        Transaction result = transactionService.processTransfer(request);
+
+        // Assert
+        assertEquals("COMPLETED", result.getStatus());
+        assertEquals("idemp-key-456", result.getIdempotencyKey());
+        verify(transactionRepository, times(1)).findByIdempotencyKey("idemp-key-456");
+        verify(transactionRepository, times(1)).save(any(Transaction.class));
+    }
 }
