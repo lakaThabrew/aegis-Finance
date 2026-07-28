@@ -1,30 +1,55 @@
-import { useState } from 'react';
-import { Plus, Trash2, Send, X, CheckCircle2 } from 'lucide-react';
-import type { Beneficiary } from '../types';
-
-const MOCK_BENEFICIARIES: Beneficiary[] = [
-  { id: 'b1', beneficiaryName: 'Alice Johnson', beneficiaryAccountNumber: 'AGS-0099-2024' },
-  { id: 'b2', beneficiaryName: 'Bob Smith', beneficiaryAccountNumber: 'AGS-0077-2024' },
-  { id: 'b3', beneficiaryName: 'Charlie Lee', beneficiaryAccountNumber: 'AGS-0055-2024' },
-];
+import { useState, useEffect } from 'react';
+import { Plus, Trash2, Send, X, CheckCircle2, Loader2 } from 'lucide-react';
+import type { Beneficiary, Account } from '../types';
+import api from '../api/client';
 
 type Step = 'list' | 'add' | 'transfer' | 'confirm' | 'success';
 
 export default function BeneficiariesPage() {
-  const [beneficiaries, setBeneficiaries] = useState<Beneficiary[]>(MOCK_BENEFICIARIES);
+  const [beneficiaries, setBeneficiaries] = useState<Beneficiary[]>([]);
+  const [accounts, setAccounts] = useState<Account[]>([]);
   const [step, setStep] = useState<Step>('list');
   const [selectedBen, setSelectedBen] = useState<Beneficiary | null>(null);
   const [amount, setAmount] = useState('');
   const [newName, setNewName] = useState('');
   const [newAccNum, setNewAccNum] = useState('');
   const [loading, setLoading] = useState(false);
+  const [pageLoading, setPageLoading] = useState(true);
 
-  const handleAdd = (e: React.FormEvent) => {
+  useEffect(() => {
+    const loadData = async () => {
+      try {
+        const [bens, accs] = await Promise.all([
+          api.get('/api/v1/core/beneficiaries'),
+          api.get('/api/v1/core/accounts')
+        ]);
+        setBeneficiaries(bens.data);
+        setAccounts(accs.data);
+      } catch (e) {
+        console.error('Failed to load data', e);
+      } finally {
+        setPageLoading(false);
+      }
+    };
+    loadData();
+  }, []);
+
+  const handleAdd = async (e: React.FormEvent) => {
     e.preventDefault();
-    const nb: Beneficiary = { id: `b${Date.now()}`, beneficiaryName: newName, beneficiaryAccountNumber: newAccNum };
-    setBeneficiaries(prev => [...prev, nb]);
-    setNewName(''); setNewAccNum('');
-    setStep('list');
+    setLoading(true);
+    try {
+      const res = await api.post('/api/v1/core/beneficiaries', {
+        beneficiaryName: newName,
+        beneficiaryAccountNumber: newAccNum
+      });
+      setBeneficiaries(prev => [...prev, res.data]);
+      setNewName(''); setNewAccNum('');
+      setStep('list');
+    } catch (e) {
+      console.error('Failed to add beneficiary', e);
+    } finally {
+      setLoading(false);
+    }
   };
 
   const handleTransfer = async (e: React.FormEvent) => {
@@ -34,11 +59,24 @@ export default function BeneficiariesPage() {
 
   const confirmTransfer = async () => {
     setLoading(true);
-    // TODO: POST to backend API
-    await new Promise(r => setTimeout(r, 1000));
-    setLoading(false);
-    setStep('success');
+    try {
+      const senderAccountNumber = accounts.length > 0 ? accounts[0].accountNumber : 'UNKNOWN';
+      await api.post('/api/v1/core/transfer', {
+        senderAccountNumber: senderAccountNumber,
+        receiverAccountNumber: selectedBen?.beneficiaryAccountNumber,
+        amount: parseFloat(amount)
+      });
+      setStep('success');
+    } catch (e) {
+      console.error('Failed to process transfer', e);
+    } finally {
+      setLoading(false);
+    }
   };
+
+  if (pageLoading) {
+    return <div className="flex items-center justify-center h-64 text-white"><Loader2 className="w-8 h-8 animate-spin" /></div>;
+  }
 
   return (
     <div className="page-enter space-y-6">
@@ -91,7 +129,7 @@ export default function BeneficiariesPage() {
           <form onSubmit={handleAdd} className="space-y-4">
             <FormField label="Full Name" id="new-ben-name" value={newName} onChange={setNewName} placeholder="e.g. Alice Johnson" />
             <FormField label="Account Number" id="new-ben-account" value={newAccNum} onChange={setNewAccNum} placeholder="AGS-XXXX-2024" />
-            <button type="submit" id="confirm-add-beneficiary" className="btn-primary w-full py-3 rounded-xl text-white font-medium">Add Beneficiary</button>
+            <button type="submit" disabled={loading} id="confirm-add-beneficiary" className="btn-primary w-full py-3 rounded-xl text-white font-medium disabled:opacity-60">{loading ? 'Adding...' : 'Add Beneficiary'}</button>
           </form>
         </Modal>
       )}
@@ -128,7 +166,7 @@ export default function BeneficiariesPage() {
       {step === 'confirm' && selectedBen && (
         <Modal title="Confirm Transfer" onClose={() => setStep('list')}>
           <div className="space-y-3 text-sm mb-6">
-            {[['To', selectedBen.beneficiaryName], ['Account', selectedBen.beneficiaryAccountNumber], ['Amount', `$${parseFloat(amount).toFixed(2)}`]].map(([k, v]) => (
+            {[['To', selectedBen.beneficiaryName], ['Account', selectedBen.beneficiaryAccountNumber], ['Amount', `$${parseFloat(amount || '0').toFixed(2)}`]].map(([k, v]) => (
               <div key={k} className="flex justify-between border-b border-gray-800 pb-3">
                 <span className="text-gray-400">{k}</span>
                 <span className="text-white font-medium">{v}</span>

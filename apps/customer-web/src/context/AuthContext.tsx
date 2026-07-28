@@ -1,35 +1,67 @@
-import React, { createContext, useContext, useState } from 'react';
+import React, { createContext, useContext, useState, useEffect } from 'react';
+import Keycloak from 'keycloak-js';
+
+const keycloakConfig = {
+  url: 'http://localhost:8080',
+  realm: 'aegis',
+  clientId: 'aegis-frontend'
+};
+
+const keycloak = new Keycloak(keycloakConfig);
 
 interface AuthContextType {
   token: string | null;
   customerId: string | null;
-  login: (token: string, customerId: string) => void;
+  login: () => void;
   logout: () => void;
   isAuthenticated: boolean;
+  isInitialized: boolean;
 }
 
 const AuthContext = createContext<AuthContextType | null>(null);
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
-  const [token, setToken] = useState<string | null>(localStorage.getItem('aegis_token'));
-  const [customerId, setCustomerId] = useState<string | null>(localStorage.getItem('aegis_customer_id'));
+  const [isInitialized, setIsInitialized] = useState(false);
+  const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const [token, setToken] = useState<string | null>(null);
+  const [customerId, setCustomerId] = useState<string | null>(null);
 
-  const login = (newToken: string, id: string) => {
-    setToken(newToken);
-    setCustomerId(id);
-    localStorage.setItem('aegis_token', newToken);
-    localStorage.setItem('aegis_customer_id', id);
+  useEffect(() => {
+    keycloak.init({ onLoad: 'check-sso' })
+      .then((authenticated) => {
+        setIsAuthenticated(authenticated);
+        if (authenticated) {
+          setToken(keycloak.token || null);
+          const cid = (keycloak.tokenParsed as any)?.customerId?.[0] || 'customer-001';
+          setCustomerId(cid);
+          localStorage.setItem('aegis_token', keycloak.token || '');
+          
+          // Set up token refresh
+          keycloak.onTokenExpired = () => {
+            keycloak.updateToken(30).then(refreshed => {
+              if (refreshed) {
+                setToken(keycloak.token || null);
+                localStorage.setItem('aegis_token', keycloak.token || '');
+              }
+            });
+          };
+        }
+        setIsInitialized(true);
+      })
+      .catch(console.error);
+  }, []);
+
+  const login = () => {
+    keycloak.login();
   };
 
   const logout = () => {
-    setToken(null);
-    setCustomerId(null);
     localStorage.removeItem('aegis_token');
-    localStorage.removeItem('aegis_customer_id');
+    keycloak.logout();
   };
 
   return (
-    <AuthContext.Provider value={{ token, customerId, login, logout, isAuthenticated: !!token }}>
+    <AuthContext.Provider value={{ token, customerId, login, logout, isAuthenticated, isInitialized }}>
       {children}
     </AuthContext.Provider>
   );

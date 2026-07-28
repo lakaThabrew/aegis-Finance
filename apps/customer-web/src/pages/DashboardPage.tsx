@@ -1,25 +1,15 @@
-import { useState } from 'react';
-import { Wallet, TrendingUp, ArrowUpRight, ArrowDownLeft, Copy, CheckCircle2, RefreshCw, ShieldCheck, Sparkles } from 'lucide-react';
+import { useState, useEffect } from 'react';
+import { Wallet, TrendingUp, ArrowUpRight, ArrowDownLeft, Copy, CheckCircle2, RefreshCw, ShieldCheck, Sparkles, Loader2 } from 'lucide-react';
 import type { Account, Transaction } from '../types';
+import api from '../api/client';
 import securityHero from '../assets/aegis-security-hero.png';
-
-// --- Mock data (replace with API calls when backend is ready) ---
-const MOCK_ACCOUNTS: Account[] = [
-  { id: 'acc-1', accountNumber: 'AGS-0001-2024', currency: 'USD', balance: 24856.75, status: 'ACTIVE' },
-  { id: 'acc-2', accountNumber: 'AGS-0002-2024', currency: 'USD', balance: 5200.00, status: 'ACTIVE' },
-];
-
-const MOCK_TRANSACTIONS: Transaction[] = [
-  { id: 't1', reference: 'TXN-8F3A1B', senderAccountNumber: 'AGS-0001-2024', receiverAccountNumber: 'AGS-0099-2024', amount: 1500, currency: 'USD', status: 'COMPLETED', createdAt: new Date(Date.now() - 86400000).toISOString() },
-  { id: 't2', reference: 'TXN-2C9E7D', senderAccountNumber: 'AGS-0099-2024', receiverAccountNumber: 'AGS-0001-2024', amount: 3000, currency: 'USD', status: 'COMPLETED', createdAt: new Date(Date.now() - 172800000).toISOString() },
-  { id: 't3', reference: 'TXN-5A4F2E', senderAccountNumber: 'AGS-0001-2024', receiverAccountNumber: 'AGS-0077-2024', amount: 25000, currency: 'USD', status: 'HELD', riskScore: 85, createdAt: new Date(Date.now() - 3600000).toISOString() },
-];
 
 function formatCurrency(amount: number, currency = 'USD') {
   return new Intl.NumberFormat('en-US', { style: 'currency', currency }).format(amount);
 }
 
 function timeAgo(isoDate: string) {
+  if (!isoDate) return '';
   const diff = Date.now() - new Date(isoDate).getTime();
   const hrs = Math.floor(diff / 3600000);
   if (hrs < 1) return 'Just now';
@@ -34,15 +24,47 @@ function StatusBadge({ status }: { status: Transaction['status'] }) {
     REJECTED: 'bg-red-500/15 text-red-400 border-red-500/30',
   };
   return (
-    <span className={`px-2 py-0.5 rounded-full text-xs font-medium border ${cfg[status]}`}>{status}</span>
+    <span className={`px-2 py-0.5 rounded-full text-xs font-medium border ${cfg[status] || 'bg-gray-500/15 text-gray-400 border-gray-500/30'}`}>{status}</span>
   );
 }
 
 export default function DashboardPage() {
-  const [accounts] = useState<Account[]>(MOCK_ACCOUNTS);
-  const [transactions] = useState<Transaction[]>(MOCK_TRANSACTIONS);
+  const [accounts, setAccounts] = useState<Account[]>([]);
+  const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [copied, setCopied] = useState<string | null>(null);
-  const [selectedAccount, setSelectedAccount] = useState<Account>(MOCK_ACCOUNTS[0]);
+  const [selectedAccount, setSelectedAccount] = useState<Account | null>(null);
+  const [loading, setLoading] = useState(true);
+
+  const loadData = async () => {
+    setLoading(true);
+    try {
+      const [accRes, txRes] = await Promise.all([
+        api.get('/api/v1/core/accounts'),
+        api.get('/api/v1/core/transactions')
+      ]);
+      setAccounts(accRes.data);
+      // Sort transactions by date descending
+      const sortedTxs = txRes.data.sort((a: Transaction, b: Transaction) => 
+        new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+      );
+      setTransactions(sortedTxs);
+      if (accRes.data.length > 0 && !selectedAccount) {
+        setSelectedAccount(accRes.data[0]);
+      } else if (accRes.data.length > 0 && selectedAccount) {
+        // update selected account reference
+        const updated = accRes.data.find((a: Account) => a.id === selectedAccount.id);
+        if (updated) setSelectedAccount(updated);
+      }
+    } catch (e) {
+      console.error('Failed to load dashboard data', e);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    loadData();
+  }, []);
 
   const copyAccount = (num: string) => {
     navigator.clipboard.writeText(num);
@@ -50,7 +72,11 @@ export default function DashboardPage() {
     setTimeout(() => setCopied(null), 2000);
   };
 
-  const totalBalance = accounts.reduce((s, a) => s + a.balance, 0);
+  if (loading && accounts.length === 0) {
+    return <div className="flex items-center justify-center h-64 text-white"><Loader2 className="w-8 h-8 animate-spin" /></div>;
+  }
+
+  const totalBalance = accounts.reduce((s, a) => s + (typeof a.balance === 'number' ? a.balance : parseFloat(a.balance as string)), 0);
 
   return (
     <div className="page-enter space-y-8">
@@ -61,8 +87,8 @@ export default function DashboardPage() {
           <h1 className="text-3xl font-bold tracking-tight text-white">Good morning, Alex.</h1>
           <p className="mt-1 text-sm text-slate-400">Everything is secure. Here is your financial pulse.</p>
         </div>
-        <button className="glass flex items-center gap-2 rounded-xl px-4 py-2 text-sm text-slate-300 transition hover:text-white">
-          <RefreshCw className="w-4 h-4" /> Refresh
+        <button onClick={loadData} className="glass flex items-center gap-2 rounded-xl px-4 py-2 text-sm text-slate-300 transition hover:text-white disabled:opacity-50">
+          <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} /> Refresh
         </button>
       </div>
 
@@ -86,14 +112,15 @@ export default function DashboardPage() {
       </div>
 
       {/* Account Cards */}
-      <div><div className="mb-4 flex items-center justify-between"><div><h2 className="text-lg font-semibold text-white">Your accounts</h2><p className="text-xs text-slate-500">Select an account to view its activity</p></div><Sparkles className="h-4 w-4 text-violet-300" /></div>
+      <div>
+        <div className="mb-4 flex items-center justify-between"><div><h2 className="text-lg font-semibold text-white">Your accounts</h2><p className="text-xs text-slate-500">Select an account to view its activity</p></div><Sparkles className="h-4 w-4 text-violet-300" /></div>
         <div className="stagger-in grid grid-cols-1 gap-4 md:grid-cols-2">
           {accounts.map(acc => (
             <div
               key={acc.id}
               id={`account-${acc.id}`}
               onClick={() => setSelectedAccount(acc)}
-              className={`glass rounded-2xl p-6 cursor-pointer card-hover transition-all ${selectedAccount.id === acc.id ? 'border-blue-500/50 ring-1 ring-blue-500/30' : ''}`}
+              className={`glass rounded-2xl p-6 cursor-pointer card-hover transition-all ${selectedAccount?.id === acc.id ? 'border-blue-500/50 ring-1 ring-blue-500/30' : ''}`}
             >
               <div className="flex justify-between items-start mb-4">
                 <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-blue-500/20 to-purple-500/20 border border-blue-500/30 flex items-center justify-center">
@@ -103,7 +130,7 @@ export default function DashboardPage() {
                   {acc.status}
                 </span>
               </div>
-              <p className="text-2xl font-bold text-white mb-1">{formatCurrency(acc.balance, acc.currency)}</p>
+              <p className="text-2xl font-bold text-white mb-1">{formatCurrency(typeof acc.balance === 'number' ? acc.balance : parseFloat(acc.balance as string), acc.currency)}</p>
               <div className="flex items-center gap-2">
                 <p className="text-gray-400 text-sm font-mono">{acc.accountNumber}</p>
                 <button
@@ -116,6 +143,7 @@ export default function DashboardPage() {
               </div>
             </div>
           ))}
+          {accounts.length === 0 && <div className="text-gray-500">No accounts found.</div>}
         </div>
       </div>
 
@@ -128,13 +156,18 @@ export default function DashboardPage() {
           </a>
         </div>
         <div className="glass rounded-2xl overflow-hidden">
-          {transactions.slice(0, 4).map((tx, i) => {
-            const isSent = tx.senderAccountNumber === selectedAccount.accountNumber;
+          {transactions.filter(tx => !selectedAccount || tx.senderAccount?.accountNumber === selectedAccount.accountNumber || tx.receiverAccount?.accountNumber === selectedAccount.accountNumber).slice(0, 10).map((tx) => {
+            // Note: The API returns the nested account objects instead of just strings.
+            const senderNum = (tx as any).senderAccount?.accountNumber || tx.senderAccountNumber;
+            const receiverNum = (tx as any).receiverAccount?.accountNumber || tx.receiverAccountNumber;
+            
+            const isSent = selectedAccount ? senderNum === selectedAccount.accountNumber : true;
+            
             return (
               <div
                 key={tx.id}
                 id={`txn-${tx.id}`}
-                className={`flex items-center gap-4 p-4 hover:bg-white/3 transition ${i < transactions.length - 1 ? 'border-b border-gray-800/60' : ''}`}
+                className={`flex items-center gap-4 p-4 hover:bg-white/3 transition border-b border-gray-800/60 last:border-0`}
               >
                 <div className={`w-10 h-10 rounded-xl flex items-center justify-center shrink-0 ${isSent ? 'bg-red-500/15' : 'bg-emerald-500/15'}`}>
                   {isSent ? <ArrowUpRight className="w-5 h-5 text-red-400" /> : <ArrowDownLeft className="w-5 h-5 text-emerald-400" />}
@@ -142,12 +175,12 @@ export default function DashboardPage() {
                 <div className="flex-1 min-w-0">
                   <p className="text-white text-sm font-medium">{tx.reference}</p>
                   <p className="text-gray-400 text-xs truncate">
-                    {isSent ? `To: ${tx.receiverAccountNumber}` : `From: ${tx.senderAccountNumber}`}
+                    {isSent ? `To: ${receiverNum}` : `From: ${senderNum}`}
                   </p>
                 </div>
                 <div className="text-right shrink-0">
                   <p className={`font-semibold text-sm ${isSent ? 'text-red-400' : 'text-emerald-400'}`}>
-                    {isSent ? '-' : '+'}{formatCurrency(tx.amount)}
+                    {isSent ? '-' : '+'}{formatCurrency(typeof tx.amount === 'number' ? tx.amount : parseFloat(tx.amount as string))}
                   </p>
                   <p className="text-gray-500 text-xs">{timeAgo(tx.createdAt)}</p>
                 </div>
@@ -155,6 +188,7 @@ export default function DashboardPage() {
               </div>
             );
           })}
+          {transactions.length === 0 && <div className="p-8 text-center text-gray-500">No recent transactions.</div>}
         </div>
       </div>
     </div>
