@@ -25,6 +25,14 @@ Integration tests load the Spring Context and use an **in-memory H2 database** t
   - `testTransferEndpoint_Success`: Sends a JSON `POST` request to `/api/v1/core/transfer`. Validates the HTTP 200 response and confirms the JSON body returns `"status": "COMPLETED"`.
   - `testTransferEndpoint_Held`: Sends a JSON payload triggering the fraud rules. Validates the JSON body returns `"status": "HELD"`.
 
+### C. Machine Learning Engine Testing (Python)
+The ML engine (`fraud-ml-engine`) can be tested directly via its FastAPI Swagger UI or curl.
+
+- **Target Location**: `http://localhost:8000/docs`
+- **Testing Approach**: 
+  - Send a `POST` request to `/api/v1/ml/evaluate` with a JSON payload containing `amount`, `oldbalanceOrg`, etc.
+  - Assert the response returns a valid `mlRiskScore` (0-100) and `mlProbability`.
+
 ### 🏃 How to Run Backend Tests
 
 To execute the test suite via Maven, run the following commands:

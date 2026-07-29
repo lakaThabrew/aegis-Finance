@@ -9,3 +9,18 @@ build/
 .idea/
 .vscode/
 target/
+
+# Python & Machine Learning
+services/fraud-ml-engine/venv/
+services/fraud-ml-engine/__pycache__/
+services/fraud-ml-engine/*.pyc
+
+# Allow trained models to be committed for judges, but ignore other large binaries if any
+# (If a joblib gets > 100MB, use Git LFS, but XGBoost models are usually small)
+#*.joblib
+
+# Datasets
+# GitHub has a 100MB limit. We MUST ignore paysim (400MB+)
+services/fraud-ml-engine/data/paysim.csv
+services/fraud-ml-engine/data/*.zip
+# We allow aegis_synthetic.csv because it's small and specific to our domain

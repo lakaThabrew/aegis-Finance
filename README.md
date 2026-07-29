@@ -40,9 +40,14 @@ Aegis follows a **microservice architecture** organized as a monorepo:
 │  ┌──────────▼────┐  ┌─────▼─────────┐ ┌─▼─────────────┐ │
 │  │ Core Banking  │  │ Fraud Service │ │Identity Service │
 │  │ Port: 8081    │  │ Port: 8082    │ │ Port: 8085    │ │
-│  │ • Accounts    │  │ • Risk Scoring│ │ • e-KYC Status│ │
-│  │ • Ledger      │  │ • SOC Alerts  │ │ • Profiles    │ │
+│  │               │  │               │ │               │ │
 │  └──────────┬────┘  └─────┬─────────┘ └─┬─────────────┘ │
+│             │             │             │               │
+│             │       ┌─────▼─────────┐   │               │
+│             │       │ ML Engine     │   │               │
+│             │       │ (FastAPI)     │   │               │
+│             │       │ Port: 8000    │   │               │
+│             │       └─────┬─────────┘   │               │
 └─────────────┼─────────────┼─────────────┼───────────────┘
               │             │             │
 ┌─────────────┼─────────────┼─────────────┼───────────────┐
@@ -63,8 +68,9 @@ Aegis follows a **microservice architecture** organized as a monorepo:
 
 | Layer | Technology |
 |---|---|
-| **Backend** | Java 17, Spring Boot 3, Spring Cloud Gateway |
+| **Backend** | Java 17, Spring Boot 3, Python 3.12, FastAPI |
 | **Frontend** | React 19, TypeScript, Vite 8, Tailwind CSS |
+| **Machine Learning**| XGBoost, Scikit-Learn, Pandas (Transfer Learning Pipeline) |
 | **Database** | PostgreSQL (Neon), Flyway Migrations |
 | **Messaging** | Apache Kafka (Transactional Outbox Pattern) |
 | **Caching** | Redis |
@@ -89,7 +95,8 @@ aegis/
 │   ├── core-banking/          # Core Banking Microservice
 │   ├── fraud-service/         # Fraud Detection Microservice
 │   ├── identity-service/      # Digital Identity and e-KYC Microservice
-│   └── notification-service/  # Async Notification Service (Kafka Listener)
+│   ├── notification-service/  # Async Notification Service (Kafka Listener)
+│   └── fraud-ml-engine/       # Python FastAPI Machine Learning Microservice
 ├── infrastructure/
 │   └── docker/
 │       ├── docker-compose.yml # Kafka, Redis, Keycloak, PostgreSQL, Prometheus, Grafana
@@ -108,8 +115,9 @@ aegis/
 - **Idempotency** — Duplicate transfer prevention
 - **Transactional Outbox** — Events saved atomically with ledger changes
 
-### 🛡️ Fraud Detection Service
-- **Rules-Based Risk Scoring** — Evaluates transaction amount against thresholds
+### 🛡️ Fraud Detection Service & AI Engine
+- **Transfer Learning ML Engine** — A Python FastAPI microservice running an XGBoost model trained on Kaggle PaySim and fine-tuned with synthetic domain data.
+- **Rules-Based Risk Scoring** — Java engine evaluates limits and blends with the Python ML Engine's risk score.
 - **Hold Boundary** — Transactions with `riskScore >= 70` are marked `HELD`
 - **SOC API** — Exposes `/api/v1/fraud/alerts` for Security Operations Center dashboard
 
@@ -158,19 +166,35 @@ docker compose up -d
 
 ```bash
 # Core Banking (port 8081)
-cd services/core-banking && ./mvnw spring-boot:run
+cd services/core-banking
+./mvnw spring-boot:run
 
 # Fraud Service (port 8082)
-cd services/fraud-service && ./mvnw spring-boot:run
+cd services/fraud-service
+./mvnw spring-boot:run
+
+# Python ML Engine (port 8000)
+# Option A (Recommended): Run via Docker Compose
+cd infrastructure/docker
+docker compose build fraud-ml-engine
+docker compose up -d fraud-ml-engine
+
+# Option B: Run locally (requires Python 3.12+)
+cd services/fraud-ml-engine
+.\venv\Scripts\activate
+uvicorn app:app --port 8000
 
 # Notification Service (port 8084)
-cd services/notification-service && ./mvnw spring-boot:run
+cd services/notification-service
+./mvnw spring-boot:run
 
 # Identity Service (port 8085)
-cd services/identity-service && ./mvnw spring-boot:run
+cd services/identity-service
+./mvnw spring-boot:run
 
 # API Gateway (port 8080)
-cd services/api-gateway && ./mvnw spring-boot:run
+cd services/api-gateway
+./mvnw spring-boot:run
 ```
 
 ### 3. Run Frontend Apps
@@ -178,11 +202,13 @@ cd services/api-gateway && ./mvnw spring-boot:run
 ```bash
 # Customer Portal (port 5173)
 cd apps/customer-web
-npm install && npm run dev
+npm install
+npm run dev
 
 # Admin Portal (port 5174)
 cd apps/admin-web
-npm install && npm run dev
+npm install
+npm run dev
 ```
 
 ### 4. Access Monitoring (Grafana)

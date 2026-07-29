@@ -68,8 +68,9 @@ Aegis uses **Keycloak** for secure Identity and Access Management (IAM).
 
 ## 🛠️ Developer Notes
 
-- **Swagger/OpenAPI UI**: Available at `http://localhost:8081/swagger-ui.html` (Core Banking) and `http://localhost:8082/swagger-ui.html` (Fraud Service).
+- **Swagger/OpenAPI UI**: Available at `http://localhost:8081/swagger-ui.html` (Core Banking), `http://localhost:8082/swagger-ui.html` (Fraud Service), and `http://localhost:8000/docs` (Python ML Engine).
 - **Actuator Health & Metrics**: `http://localhost:8081/actuator/health` and `/actuator/prometheus` (for all backend services).
 - **Database**: Connect to PostgreSQL locally on port `5432` with username `postgres`, password `password`.
 - **Kafka**: Running on `localhost:9092`. The `transaction-events` topic receives outbox polling events.
 - **Monitoring (Grafana)**: Running on `http://localhost:3000` (User/Pass: `admin/admin`). Displays JVM memory usage, API traffic, and system vitals from Prometheus (which runs on `http://localhost:9090`).
+- **Machine Learning**: The ML Engine uses Transfer Learning. To retrain the base model, place the Kaggle PaySim dataset in `services/fraud-ml-engine/data/paysim.csv` and run `train_base_model.py` followed by `fine_tune_model.py`.
