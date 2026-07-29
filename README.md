@@ -1,7 +1,7 @@
 # 🛡️ Aegis Finance — Secure Digital Banking Platform
 
 > A full-stack, microservice-based digital banking system built for the **Duothon 6.0** competition.  
-> Aegis provides P2P transfers with double-entry ledger accounting, real-time fraud detection, and a dedicated admin portal for fraud analysts.
+> Aegis provides P2P transfers with double-entry ledger accounting, real-time fraud detection, e-KYC identity management, and a dedicated admin portal for fraud analysts.
 
 ---
 
@@ -35,24 +35,25 @@ Aegis follows a **microservice architecture** organized as a monorepo:
 │  ┌────────▼───────────────────────────▼──────────────┐  │
 │  │           Spring Cloud API Gateway                │  │
 │  │                  Port: 8080                       │  │
-│  └──────────┬────────────────────────┬───────────────┘  │
-│             │    Service Layer       │                   │
-│  ┌──────────▼──────────┐  ┌──────────▼──────────┐       │
-│  │  Core Banking       │  │  Fraud Service      │       │
-│  │  Port: 8081         │  │  Port: 8082         │       │
-│  │  • Accounts         │  │  • Risk Scoring     │       │
-│  │  • Transactions     │  │  • Hold Boundary    │       │
-│  │  • Double-Entry     │  │  • Fraud Results    │       │
-│  │  • Outbox Events    │  │                     │       │
-│  └──────────┬──────────┘  └─────────────────────┘       │
-└─────────────┼───────────────────────────────────────────┘
-              │
-┌─────────────┼───────────────────────────────────────────┐
-│             │    Infrastructure Layer                    │
-│  ┌──────────▼──┐  ┌────────┐  ┌───────┐  ┌──────────┐  │
-│  │ PostgreSQL  │  │ Kafka  │  │ Redis │  │ Keycloak │  │
-│  │   (Neon)    │  │        │  │       │  │  (IAM)   │  │
-│  └─────────────┘  └────────┘  └───────┘  └──────────┘  │
+│  └──────────┬─────────────┬─────────────┬────────────┘  │
+│             │Service Layer│             │               │
+│  ┌──────────▼────┐  ┌─────▼─────────┐ ┌─▼─────────────┐ │
+│  │ Core Banking  │  │ Fraud Service │ │Identity Service │
+│  │ Port: 8081    │  │ Port: 8082    │ │ Port: 8085    │ │
+│  │ • Accounts    │  │ • Risk Scoring│ │ • e-KYC Status│ │
+│  │ • Ledger      │  │ • SOC Alerts  │ │ • Profiles    │ │
+│  └──────────┬────┘  └─────┬─────────┘ └─┬─────────────┘ │
+└─────────────┼─────────────┼─────────────┼───────────────┘
+              │             │             │
+┌─────────────┼─────────────┼─────────────┼───────────────┐
+│             │    Infrastructure Layer   │               │
+│  ┌──────────▼──┐  ┌────────┐  ┌───────┐ ┌──────────┐    │
+│  │ PostgreSQL  │  │ Kafka  │  │ Redis │ │ Keycloak │    │
+│  │             │  │        │  │       │ │  (IAM)   │    │
+│  └─────────────┘  └────────┘  └───────┘ └──────────┘    │
+│  ┌────────────────┐  ┌───────────────┐                  │
+│  │ Prometheus     │  │ Grafana       │  (Monitoring)    │
+│  └────────────────┘  └───────────────┘                  │
 └─────────────────────────────────────────────────────────┘
 ```
 
@@ -68,8 +69,8 @@ Aegis follows a **microservice architecture** organized as a monorepo:
 | **Messaging** | Apache Kafka (Transactional Outbox Pattern) |
 | **Caching** | Redis |
 | **Auth / IAM** | Keycloak (OAuth2 + TOTP MFA) |
+| **Monitoring** | Prometheus, Grafana, Micrometer, Spring Boot Actuator |
 | **Icons** | Lucide React |
-| **CI/CD** | GitHub Actions |
 | **Containerization** | Docker Compose |
 
 ---
@@ -80,40 +81,20 @@ Aegis follows a **microservice architecture** organized as a monorepo:
 aegis/
 ├── apps/
 │   ├── customer-web/          # Customer-facing React portal
-│   │   ├── src/
-│   │   │   ├── components/    # Sidebar, AppLayout
-│   │   │   ├── pages/         # Dashboard, Transactions, Beneficiaries, Security
-│   │   │   ├── context/       # AuthContext (JWT management)
-│   │   │   ├── api/           # Axios client with token interceptor
-│   │   │   └── types/         # Shared TypeScript interfaces
-│   │   └── ...
+│   │   ├── src/pages/         # Dashboard, Transfers, Notifications, Accounts
 │   └── admin-web/             # Admin/Fraud Analyst React portal
-│       ├── src/
-│       │   ├── components/    # AdminSidebar, AdminLayout
-│       │   ├── pages/         # Overview, HeldTransfers, AuditLog
-│       │   └── types/         # Admin-specific TypeScript interfaces
-│       └── ...
+│       ├── src/pages/         # Overview, SOC Dashboard, Customer Management
 ├── services/
 │   ├── api-gateway/           # Spring Cloud API Gateway
 │   ├── core-banking/          # Core Banking Microservice
-│   │   ├── entity/            # Account, Transaction, LedgerEntry, OutboxEvent
-│   │   ├── repository/        # JPA Repositories (with pessimistic locking)
-│   │   ├── service/           # TransactionService (double-entry ledger)
-│   │   ├── dto/               # TransferRequest
-│   │   └── db/migration/      # V1__init_schema.sql
-│   └── fraud-service/         # Fraud Detection Microservice
-│       ├── entity/            # FraudResult
-│       ├── repository/        # FraudResultRepository
-│       ├── service/           # FraudService (risk scoring engine)
-│       ├── controller/        # REST API (/api/v1/fraud/evaluate)
-│       ├── dto/               # FraudEvaluationRequest/Response
-│       └── db/migration/      # V1__init_fraud_schema.sql
+│   ├── fraud-service/         # Fraud Detection Microservice
+│   ├── identity-service/      # Digital Identity and e-KYC Microservice
+│   └── notification-service/  # Async Notification Service (Kafka Listener)
 ├── infrastructure/
 │   └── docker/
-│       └── docker-compose.yml # Kafka, Redis, Keycloak, PostgreSQL
-├── .github/
-│   └── workflows/
-│       └── ci.yml             # GitHub Actions CI pipeline
+│       ├── docker-compose.yml # Kafka, Redis, Keycloak, PostgreSQL, Prometheus, Grafana
+│       ├── prometheus/        # Prometheus configuration
+│       └── grafana/           # Grafana dashboards and provisioning
 └── docs/                      # Documentation directory
 ```
 
@@ -122,34 +103,36 @@ aegis/
 ## ✅ Implemented Features
 
 ### 🏦 Core Banking Service
-- **Double-Entry Ledger** — Every transfer creates a matching DEBIT and CREDIT entry with before/after balances
-- **Pessimistic Locking** — Ordered account locking prevents deadlocks during concurrent transfers
-- **Idempotency** — Duplicate transfer prevention via unique idempotency keys
-- **Transactional Outbox** — Events (`TransactionPosted`, `TransferHeld`) saved atomically with ledger changes
-- **Flyway Migrations** — Versioned schema for `accounts`, `transactions`, `ledger_entries`, `beneficiaries`, `outbox_events`
+- **Double-Entry Ledger** — Every transfer creates a matching DEBIT and CREDIT entry
+- **Pessimistic Locking** — Ordered account locking prevents deadlocks
+- **Idempotency** — Duplicate transfer prevention
+- **Transactional Outbox** — Events saved atomically with ledger changes
 
 ### 🛡️ Fraud Detection Service
-- **Rules-Based Risk Scoring** — Evaluates transaction amount against configurable thresholds
-- **Explicit Hold Boundary** — Transactions with `riskScore >= 70` are marked `HELD`; ledger balances remain unchanged until admin approval
-- **Fraud Results Persistence** — All evaluations are stored for audit purposes
-- **REST API** — `POST /api/v1/fraud/evaluate` for synchronous fraud checks
+- **Rules-Based Risk Scoring** — Evaluates transaction amount against thresholds
+- **Hold Boundary** — Transactions with `riskScore >= 70` are marked `HELD`
+- **SOC API** — Exposes `/api/v1/fraud/alerts` for Security Operations Center dashboard
+
+### 🆔 Identity Service (New)
+- **e-KYC Verification** — Manages identity verification statuses (PENDING, VERIFIED, REJECTED)
+- **Risk Profiles** — Individual customer risk scoring and KYC tracking
 
 ### 👤 Customer Portal (`customer-web`)
-- **Login Page** — Glassmorphism design, Keycloak-ready JWT auth, show/hide password toggle
-- **Dashboard** — Total portfolio balance hero card, individual account cards with copy-to-clipboard, recent activity feed
-- **Transactions** — Full ledger table with search, status filters (ALL / COMPLETED / HELD / REJECTED), downloadable CSV statement, transaction receipt modal
-- **Beneficiaries** — Grid of beneficiary cards, add/delete flows, multi-step transfer workflow with preview and confirmation modal
-- **Security Center** — Account freeze/unfreeze toggle, trusted device management, colour-coded audit trail
+- **Dashboard & Accounts** — Full portfolio view, dynamic accounts overview
+- **Transfers** — Multi-step secure transfer flow with ledger integration
+- **Notifications** — Premium timeline UI for system, security, and transaction alerts
+- **Security Center** — Account freeze/unfreeze toggle, trusted device management
 
 ### 🔴 Admin / Fraud Analyst Portal (`admin-web`)
-- **Overview Dashboard** — Stats grid (total transactions, held count, volume, flagged rate), risk score distribution bar chart, recent alerts feed
-- **Held Transfers** — Pending queue with Approve/Reject buttons, detailed inspection modal showing fraud reasons and risk score, resolved history table, ledger-unchanged reminder
-- **Audit Log** — Searchable and filterable chronological event log with severity badges (info / warning / critical) and actor tracking
+- **SOC Dashboard** — Security Operations Center with live threat monitoring and risk distribution
+- **Customer Management** — View user profiles, KYC statuses, and risk profiles
+- **Held Transfers** — Queue with Approve/Reject flows and fraud reasoning inspection
+- **Audit Log** — Chronological event log with severity badges
 
-### 🔧 Infrastructure
-- **Docker Compose** — Full local stack: PostgreSQL, Kafka (KRaft), Redis, Keycloak
-- **GitHub Actions CI** — Automated build pipeline for all services and apps
-- **Spring Cloud API Gateway** — Central routing for all backend microservices
+### 🔧 Infrastructure & Observability
+- **Docker Compose** — Full stack: PostgreSQL, Kafka, Redis, Keycloak, Prometheus, Grafana
+- **Monitoring Stack** — Prometheus scraping Spring Boot Actuators, centralized Grafana Dashboard for JVM metrics
+- **Spring Cloud API Gateway** — Central routing
 
 ---
 
@@ -161,41 +144,33 @@ aegis/
 - Node.js 18+
 - Docker & Docker Compose
 
-### 1. Start Infrastructure (Databases, Kafka, IAM)
+### 1. Start Infrastructure
 
-Aegis requires PostgreSQL, Kafka, Redis, and Keycloak to run. These are all containerized for easy setup.
+Aegis requires PostgreSQL, Kafka, Redis, Keycloak, Prometheus, and Grafana.
 
 ```bash
 cd infrastructure/docker
 docker compose up -d
 ```
-
-Once the containers are running:
-- **Kafka** will automatically create the `transaction-events` topic on the first publish.
-- **PostgreSQL** will run on port `5432`. Ensure you create the logical databases if they aren't created by default:
-  - `aegis_core` (for Core Banking)
-  - `aegis_fraud` (for Fraud Service)
-
-*Note: Flyway migrations are integrated into the Spring Boot apps. When you run the microservices, Flyway will automatically construct the tables and insert the **Demo Data** (via `V2__seed_demo_data.sql`).*
+*Note: Flyway migrations are integrated into the Spring Boot apps. They will automatically construct tables and insert Demo Data.*
 
 ### 2. Run Backend Services
 
 ```bash
 # Core Banking (port 8081)
-cd services/core-banking
-./mvnw spring-boot:run
+cd services/core-banking && ./mvnw spring-boot:run
 
 # Fraud Service (port 8082)
-cd services/fraud-service
-./mvnw spring-boot:run
+cd services/fraud-service && ./mvnw spring-boot:run
 
-# Notification Service (port 8083)
-cd services/notification-service
-./mvnw spring-boot:run
+# Notification Service (port 8084)
+cd services/notification-service && ./mvnw spring-boot:run
+
+# Identity Service (port 8085)
+cd services/identity-service && ./mvnw spring-boot:run
 
 # API Gateway (port 8080)
-cd services/api-gateway
-./mvnw spring-boot:run
+cd services/api-gateway && ./mvnw spring-boot:run
 ```
 
 ### 3. Run Frontend Apps
@@ -210,43 +185,16 @@ cd apps/admin-web
 npm install && npm run dev
 ```
 
----
-
-## 📊 Sprint Progress
-
-| Sprint | Focus | Status |
-|---|---|---|
-| **Sprint 1** | Foundation — Git, Docker, CI, Keycloak, API Gateway | ✅ Complete |
-| **Sprint 2** | Banking Core — Double-Entry Ledger, Customer Dashboard, Transactions UI | ✅ Complete |
-| **Sprint 3** | Security & Fraud — Fraud Service, Security Center, Admin Portal | ✅ Complete |
-| **Sprint 4** | Enterprise Evidence — Outbox polling, Notifications, Swagger, Demo Data | ✅ Complete |
-| **Sprint 5** | QA & Testing — Unit tests, Integration tests, E2E, Security testing | ⬜ Pending |
-
-### Remaining Work (Sprint 5)
-- [ ] Unit, Integration, and E2E tests
-- [ ] Security testing
-- [ ] Demo rehearsal workflow
+### 4. Access Monitoring (Grafana)
+Grafana is available at `http://localhost:3000` (Default credentials: admin/admin).
+Prometheus is available at `http://localhost:9090`.
 
 ---
 
-## 🔮 Deferred Features (Architecture-Only)
-
-The following were designed in Phase 1 but are **explicitly deferred** from this implementation to avoid scope creep:
-
-| Feature | Reason |
-|---|---|
-| Flutter Mobile App | Out of scope for web-focused Phase 2 |
-| Full e-KYC | Requires third-party integrations |
-| QR Payments & Bill Pay | Planned for future phases |
-| Cards & Loans Modules | Requires additional microservices |
-| Kubernetes / Istio | Docker Compose sufficient for demo |
-| HashiCorp Vault | Keycloak handles secrets for now |
-
----
 
 ## 👥 Team
 
-Built for **Duothon 6.0** competition.
+Built by Team Echo Binary for **Duothon 6.0** competition.
 
 ---
 

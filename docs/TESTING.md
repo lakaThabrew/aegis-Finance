@@ -57,6 +57,16 @@ Manual E2E testing ensures the UI, API Gateway, Microservices, and Databases com
 5. Click **Approve**.
 6. Return to the Customer Portal. The transaction should now be `COMPLETED` and the balance deducted.
 
+### Workflow 3: Identity & SOC Review
+1. Log into the **Customer Portal** and trigger high-risk actions.
+2. Log into the **Admin Portal** (`http://localhost:5174`).
+3. Navigate to **Customer Management** to view KYC statuses (served by `identity-service`).
+4. Navigate to **SOC Dashboard** to view live aggregated fraud alerts (served by `fraud-service`).
+
+### Workflow 4: Observability & Monitoring
+1. Open Prometheus at `http://localhost:9090` and verify targets under **Status > Targets** are `UP`.
+2. Open Grafana at `http://localhost:3000` (admin/admin), navigate to the `Aegis Dashboards` folder, and verify JVM Memory charts are populating.
+
 ---
 
 ## 3. Security Testing Checklist
@@ -73,4 +83,4 @@ Security is paramount in Aegis. The following areas must be validated before pro
 ## 4. Troubleshooting Tests
 
 - **Maven Permission Denied**: If running `./mvnw test` fails with a permission error (common in CI/CD), execute `chmod +x mvnw` first.
-- **Port Conflicts**: If the Integration tests fail to start the Spring context, ensure ports `8081` (Core) and `8082` (Fraud) are not currently in use by a running instance of the application.
+- **Port Conflicts**: If the Integration tests fail to start the Spring context, ensure ports are not currently in use by a running instance of the application.
