@@ -1,9 +1,11 @@
-import { Shield, LayoutDashboard, ArrowLeftRight, Users, ShieldAlert, LogOut, Bell, ChevronRight } from 'lucide-react';
+import { Shield, LayoutDashboard, ArrowLeftRight, Users, ShieldAlert, LogOut, Bell, ChevronRight, Wallet, Send } from 'lucide-react';
 import { Link, useLocation } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 
 const nav = [
   { label: 'Dashboard', icon: LayoutDashboard, href: '/dashboard' },
+  { label: 'Accounts', icon: Wallet, href: '/accounts' },
+  { label: 'Transfer', icon: Send, href: '/transfer' },
   { label: 'Transactions', icon: ArrowLeftRight, href: '/transactions' },
   { label: 'Beneficiaries', icon: Users, href: '/beneficiaries' },
   { label: 'Security Center', icon: ShieldAlert, href: '/security' },
