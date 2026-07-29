@@ -36,6 +36,21 @@ services:
     container_name: aegis-redis
     ports:
       - "16379:6379"
+    networks:
+      - aegis_network
+
+  fraud-ml-engine:
+    build:
+      context: ../../services/fraud-ml-engine
+      dockerfile: Dockerfile
+    container_name: fraud-ml-engine
+    ports:
+      - "8000:8000"
+    volumes:
+      - ../../services/fraud-ml-engine/models:/app/models
+    networks:
+      - aegis_network
+    restart: unless-stopped
 
   # Kafka for Event Streaming
   kafka:
