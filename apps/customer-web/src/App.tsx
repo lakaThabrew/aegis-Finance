@@ -8,6 +8,7 @@ import BeneficiariesPage from './pages/BeneficiariesPage';
 import SecurityPage from './pages/SecurityPage';
 import AccountsOverviewPage from './pages/AccountsOverviewPage';
 import FundTransferPage from './pages/FundTransferPage';
+import NotificationsPage from './pages/NotificationsPage';
 
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
   const { isAuthenticated } = useAuth();
@@ -30,6 +31,8 @@ function AppRoutes() {
         <Route path="/accounts" element={<AccountsOverviewPage />} />
         <Route path="/transactions" element={<TransactionsPage />} />
         <Route path="/transfer" element={<FundTransferPage />} />
+        <Route path="/notifications" element={<NotificationsPage />} />
+        <Route path="/cards" element={<div>Cards & Limits</div>} />
         <Route path="/beneficiaries" element={<BeneficiariesPage />} />
         <Route path="/security" element={<SecurityPage />} />
       </Route>

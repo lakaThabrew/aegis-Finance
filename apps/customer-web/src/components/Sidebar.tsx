@@ -1,14 +1,16 @@
-import { Shield, LayoutDashboard, ArrowLeftRight, Users, ShieldAlert, LogOut, Bell, ChevronRight, Wallet, Send } from 'lucide-react';
+import { Shield, LayoutDashboard, ArrowRightLeft, Users, ShieldAlert, LogOut, Bell, ChevronRight, Wallet, Settings } from 'lucide-react';
 import { Link, useLocation } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 
 const nav = [
-  { label: 'Dashboard', icon: LayoutDashboard, href: '/dashboard' },
+  { label: 'Dashboard', icon: LayoutDashboard, href: '/' },
   { label: 'Accounts', icon: Wallet, href: '/accounts' },
-  { label: 'Transfer', icon: Send, href: '/transfer' },
-  { label: 'Transactions', icon: ArrowLeftRight, href: '/transactions' },
+  { label: 'Transactions', icon: ArrowRightLeft, href: '/transactions' },
+  { label: 'Transfer', icon: ArrowRightLeft, href: '/transfer' },
+  { label: 'Notifications', icon: Bell, href: '/notifications' },
   { label: 'Beneficiaries', icon: Users, href: '/beneficiaries' },
   { label: 'Security Center', icon: ShieldAlert, href: '/security' },
+  { label: 'Settings', icon: Settings, href: '/settings' },
 ];
 
 export default function Sidebar() {

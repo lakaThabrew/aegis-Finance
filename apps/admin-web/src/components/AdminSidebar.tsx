@@ -1,8 +1,9 @@
-import { ShieldAlert, LayoutDashboard, AlertTriangle, ScrollText, LogOut, ChevronRight, Activity } from 'lucide-react';
+import { ShieldAlert, LayoutDashboard, AlertTriangle, ScrollText, LogOut, ChevronRight, Activity, Users } from 'lucide-react';
 import { Link, useLocation } from 'react-router-dom';
 
 const nav = [
   { label: 'Overview', icon: LayoutDashboard, href: '/admin' },
+  { label: 'Customers', icon: Users, href: '/admin/customers' },
   { label: 'Held Transfers', icon: AlertTriangle, href: '/admin/held-transfers' },
   { label: 'SOC Dashboard', icon: Activity, href: '/admin/soc-dashboard' },
   { label: 'Audit Log', icon: ScrollText, href: '/admin/audit' },
