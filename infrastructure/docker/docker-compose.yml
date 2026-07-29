@@ -104,3 +104,8 @@ volumes:
   kafka_data:
   prometheus_data:
   grafana_data:
+
+networks:
+  aegis_network:
+    driver: bridge
+

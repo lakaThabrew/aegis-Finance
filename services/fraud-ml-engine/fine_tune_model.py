@@ -32,7 +32,7 @@ y = df['isFraud']
 model_type = "Unknown"
 if os.path.exists(meta_path):
     with open(meta_path, "r") as f:
-        model_type = f.read().strip()
+        model_type = f.readline().strip()
 
 print(f"Loading Base Model ({model_type})...")
 original_model = joblib.load(base_model_path)

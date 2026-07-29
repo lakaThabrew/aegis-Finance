@@ -1,1 +1,9 @@
 XGBoost
+Best ROC-AUC: 0.9719
+Total records used for training: 500000
+Fraud cases in training subset: 233
+=== Leaderboard ===
+XGBoost: ROC-AUC: 0.9719, Time: 1.26s
+RandomForest: ROC-AUC: 0.9341, Time: 5.86s
+LogisticRegression: ROC-AUC: 0.9259, Time: 1.62s
+Total pipeline time: 9.78 seconds

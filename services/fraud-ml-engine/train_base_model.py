@@ -19,7 +19,13 @@ if not os.path.exists(data_path):
 
 print("Loading PaySim dataset...")
 # Load a subset to keep training times reasonable for demonstration
-df = pd.read_csv(data_path, nrows=300000)
+# Using usecols and float32 dtypes to drastically reduce memory usage
+columns_to_use = ['amount', 'oldbalanceOrg', 'newbalanceOrig', 'oldbalanceDest', 'newbalanceDest', 'isFraud']
+dtypes = {
+    'amount': np.float32, 'oldbalanceOrg': np.float32, 'newbalanceOrig': np.float32,
+    'oldbalanceDest': np.float32, 'newbalanceDest': np.float32, 'isFraud': np.int8
+}
+df = pd.read_csv(data_path, nrows=500000, usecols=columns_to_use, dtype=dtypes)
 
 features = ['amount', 'oldbalanceOrg', 'newbalanceOrig', 'oldbalanceDest', 'newbalanceDest']
 X = df[features]
@@ -79,9 +85,16 @@ model_path = os.path.join(models_dir, "base_model.joblib")
 joblib.dump(best_model, model_path)
 print(f"Best model saved to {model_path}")
 
-# Also save a metadata file so fine-tuning script knows what it is
+# Also save a metadata file so fine-tuning script knows what it is, and store training info
 metadata_path = os.path.join(models_dir, "model_meta.txt")
 with open(metadata_path, "w") as f:
-    f.write(best_model_name)
+    f.write(best_model_name + "\n")
+    f.write(f"Best ROC-AUC: {best_score:.4f}\n")
+    f.write(f"Total records used for training: {len(df)}\n")
+    f.write(f"Fraud cases in training subset: {y.sum()}\n")
+    f.write("=== Leaderboard ===\n")
+    for name, metrics in sorted(results.items(), key=lambda item: item[1]['roc_auc'], reverse=True):
+        f.write(f"{name}: ROC-AUC: {metrics['roc_auc']:.4f}, Time: {metrics['time']:.2f}s\n")
+    f.write(f"Total pipeline time: {time.time() - start_time:.2f} seconds\n")
 
 print(f"Pipeline completed in {time.time() - start_time:.2f} seconds.")
