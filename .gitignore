@@ -24,3 +24,14 @@ services/fraud-ml-engine/*.pyc
 services/fraud-ml-engine/data/paysim.csv
 services/fraud-ml-engine/data/*.zip
 # We allow aegis_synthetic.csv because it's small and specific to our domain
+
+# Mobile App (Flutter/Dart)
+apps/aegis_mobile/.dart_tool/
+apps/aegis_mobile/build/
+apps/aegis_mobile/.pub-cache/
+apps/aegis_mobile/.pub/
+apps/aegis_mobile/**/*.iml
+apps/aegis_mobile/android/app/debug/
+apps/aegis_mobile/android/app/profile/
+apps/aegis_mobile/android/app/release/
+apps/aegis_mobile/ios/Flutter/.last_build_id

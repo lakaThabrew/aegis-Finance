@@ -29,6 +29,9 @@ Aegis follows a **microservice architecture** organized as a monorepo:
 │  │  (React + Vite)   │    │  (React + Vite)       │     │
 │  │  Port: 5173       │    │  Port: 5174           │     │
 │  └────────┬──────────┘    └───────────┬───────────┘     │
+│  ┌────────▼───────────────────────────▼──────────────┐  │
+│  │ Aegis Mobile App (Flutter - iOS/Android)          │  │
+│  └────────┬───────────────────────────┬──────────────┘  │
 └───────────┼───────────────────────────┼─────────────────┘
             │                           │
 ┌───────────┼───────────────────────────┼─────────────────┐
@@ -70,6 +73,7 @@ Aegis follows a **microservice architecture** organized as a monorepo:
 |---|---|
 | **Backend** | Java 17, Spring Boot 3, Python 3.12, FastAPI |
 | **Frontend** | React 19, TypeScript, Vite 8, Tailwind CSS |
+| **Mobile** | Flutter, Dart |
 | **Machine Learning**| XGBoost, Scikit-Learn, Pandas (Transfer Learning Pipeline) |
 | **Database** | PostgreSQL (Neon), Flyway Migrations |
 | **Messaging** | Apache Kafka (Transactional Outbox Pattern) |
@@ -86,6 +90,7 @@ Aegis follows a **microservice architecture** organized as a monorepo:
 ```
 aegis/
 ├── apps/
+│   ├── aegis_mobile/          # Aegis Customer Mobile App (Flutter)
 │   ├── customer-web/          # Customer-facing React portal
 │   │   ├── src/pages/         # Dashboard, Transfers, Notifications, Accounts
 │   └── admin-web/             # Admin/Fraud Analyst React portal
@@ -130,6 +135,13 @@ aegis/
 - **Transfers** — Multi-step secure transfer flow with ledger integration
 - **Notifications** — Premium timeline UI for system, security, and transaction alerts
 - **Security Center** — Account freeze/unfreeze toggle, trusted device management
+
+### 📱 Aegis Mobile App (`aegis_mobile`)
+- **Ultra-Premium UI** — Glassmorphism, advanced staggered animations, and 3D card flips.
+- **Smart Dashboard** — Interactive transaction history and balance overviews.
+- **Offline Payment Module** — Generates secure cryptographic QR tokens for use without internet.
+- **AI Assistant** — Natural language interface for querying spending and managing account security.
+- **Security Center** — Live Security Scoring, MFA management, and trusted device tracking.
 
 ### 🔴 Admin / Fraud Analyst Portal (`admin-web`)
 - **SOC Dashboard** — Security Operations Center with live threat monitoring and risk distribution
@@ -211,7 +223,16 @@ npm install
 npm run dev
 ```
 
-### 4. Access Monitoring (Grafana)
+### 4. Run Mobile App
+
+```bash
+# Aegis Mobile App
+cd apps/aegis_mobile
+flutter pub get
+flutter run
+```
+
+### 5. Access Monitoring (Grafana)
 Grafana is available at `http://localhost:3000` (Default credentials: admin/admin).
 Prometheus is available at `http://localhost:9090`.
 
