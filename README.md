@@ -158,7 +158,7 @@ Aegis requires PostgreSQL, Kafka, Redis, Keycloak, Prometheus, and Grafana.
 
 ```bash
 cd infrastructure/docker
-docker compose up -d
+docker compose up -d --build
 ```
 *Note: Flyway migrations are integrated into the Spring Boot apps. They will automatically construct tables and insert Demo Data.*
 
