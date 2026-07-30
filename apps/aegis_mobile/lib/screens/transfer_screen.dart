@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../widgets/aegis_ui.dart';
+import '../services/api_service.dart';
 
 class TransferScreen extends StatefulWidget {
   const TransferScreen({super.key});
@@ -11,9 +12,32 @@ class TransferScreen extends StatefulWidget {
 class _TransferScreenState extends State<TransferScreen> {
   final _amountController = TextEditingController();
   bool _isProcessing = false;
-  String _fromAccount = 'Savings •• 1234';
+  bool _isLoadingAccounts = true;
+  String? _fromAccount;
+  String? _fromAccountRaw;
+  List<Map<String, dynamic>> _accounts = [];
+  
   String _beneficiary = 'Ava Hassan';
   String _purpose = 'General transfer';
+
+  @override
+  void initState() {
+    super.initState();
+    _loadAccounts();
+  }
+
+  Future<void> _loadAccounts() async {
+    final data = await ApiService().getDashboardData();
+    if (!mounted) return;
+    setState(() {
+      _accounts = List<Map<String, dynamic>>.from(data['accounts'] ?? []);
+      if (_accounts.isNotEmpty) {
+        _fromAccount = _accounts.first['number'];
+        _fromAccountRaw = _accounts.first['rawNumber'];
+      }
+      _isLoadingAccounts = false;
+    });
+  }
 
   @override
   void dispose() {
@@ -22,12 +46,30 @@ class _TransferScreenState extends State<TransferScreen> {
   }
 
   Future<void> _processTransfer() async {
+    if (_fromAccountRaw == null) return;
+    
+    double? amount = double.tryParse(_amountController.text);
+    if (amount == null || amount <= 0) {
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Please enter a valid amount')));
+      return;
+    }
+
     setState(() => _isProcessing = true);
-    await Future<void>.delayed(const Duration(seconds: 1));
+    
+    // For demo, we are transferring to a hardcoded beneficiary account ID or just a dummy one
+    String dummyBeneficiaryAccount = "1234567890"; // In real app, fetch from beneficiary list
+    
+    bool success = await ApiService().processTransfer(_fromAccountRaw!, dummyBeneficiaryAccount, amount);
+    
     if (!mounted) return;
     setState(() => _isProcessing = false);
-    ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Transfer successful!')));
-    Navigator.pop(context);
+    
+    if (success) {
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Transfer successful!')));
+      Navigator.pop(context, true); // Return true to signal refresh
+    } else {
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Transfer failed. Please try again.')));
+    }
   }
 
   @override
@@ -46,7 +88,22 @@ class _TransferScreenState extends State<TransferScreen> {
               AegisSurface(
                 child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
                   _label('From account'),
-                  _select(value: _fromAccount, icon: Icons.account_balance_wallet_outlined, options: const ['Savings •• 1234', 'Current •• 9876'], onChanged: (v) => setState(() => _fromAccount = v!)),
+                  if (_isLoadingAccounts)
+                    const Center(child: CircularProgressIndicator())
+                  else if (_accounts.isEmpty)
+                    const Text('No accounts available', style: TextStyle(color: Colors.white))
+                  else
+                    _select(
+                      value: _fromAccount!, 
+                      icon: Icons.account_balance_wallet_outlined, 
+                      options: _accounts.map((a) => a['number'] as String).toList(), 
+                      onChanged: (v) {
+                        setState(() {
+                          _fromAccount = v!;
+                          _fromAccountRaw = _accounts.firstWhere((a) => a['number'] == v)['rawNumber'];
+                        });
+                      }
+                    ),
                   const SizedBox(height: 18),
                   _label('To beneficiary'),
                   _select(value: _beneficiary, icon: Icons.person_outline_rounded, options: const ['Ava Hassan', 'Mohamed Khan'], onChanged: (v) => setState(() => _beneficiary = v!)),
@@ -74,7 +131,13 @@ class _TransferScreenState extends State<TransferScreen> {
                 ]),
               ),
               const SizedBox(height: 24),
-              _isProcessing ? const Center(child: CircularProgressIndicator(color: aegisBlue)) : AegisPrimaryButton(label: 'Review transfer', icon: Icons.arrow_forward_rounded, onPressed: _processTransfer),
+              _isProcessing 
+                ? const Center(child: CircularProgressIndicator(color: aegisBlue)) 
+                : AegisPrimaryButton(
+                    label: 'Review transfer', 
+                    icon: Icons.arrow_forward_rounded, 
+                    onPressed: (_accounts.isEmpty || _isLoadingAccounts) ? () {} : _processTransfer
+                  ),
             ]),
           ),
         ),

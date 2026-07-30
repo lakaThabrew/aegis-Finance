@@ -261,8 +261,11 @@ class _DashboardScreenState extends State<DashboardScreen> with TickerProviderSt
           onTap: () {
             if (screen != null) {
               // Add a slight delay before pushing so the scale animation completes
-              Future.delayed(const Duration(milliseconds: 150), () {
-                Navigator.push(context, MaterialPageRoute(builder: (_) => screen));
+              Future.delayed(const Duration(milliseconds: 150), () async {
+                final result = await Navigator.push(context, MaterialPageRoute(builder: (_) => screen));
+                if (result == true) {
+                  _fetchData();
+                }
               });
             }
           },

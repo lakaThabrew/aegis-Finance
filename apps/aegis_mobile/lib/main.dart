@@ -1,7 +1,13 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'screens/login_screen.dart';
+import 'screens/dashboard_screen.dart';
+import 'services/api_service.dart';
 
-void main() {
+void main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+  await dotenv.load(fileName: ".env");
+  await ApiService().loadToken();
   runApp(const AegisMobileApp());
 }
 
@@ -48,9 +54,9 @@ class AegisMobileApp extends StatelessWidget {
             borderSide: const BorderSide(color: Color(0xFF628DFF), width: 1.5),
           ),
         ),
-        useMaterial3: true,
+      useMaterial3: true,
       ),
-      home: const LoginScreen(),
+      home: ApiService().isAuthenticated ? const DashboardScreen() : const LoginScreen(),
     );
   }
 }

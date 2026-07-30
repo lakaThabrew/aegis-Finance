@@ -55,7 +55,7 @@ class _LoginScreenState extends State<LoginScreen> with TickerProviderStateMixin
       Navigator.pushReplacement(context, MaterialPageRoute(builder: (_) => const DashboardScreen()));
     } else if (mounted) {
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-        content: const Text('Invalid credentials. Use any username + "password"'),
+        content: const Text('Invalid credentials. Please try again.'),
         behavior: SnackBarBehavior.floating,
         backgroundColor: Colors.redAccent.withOpacity(0.9),
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
