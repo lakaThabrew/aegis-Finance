@@ -1,250 +1,46 @@
-# 🛡️ Aegis Finance — Secure Digital Banking Platform
+# Aegis Finance 🛡️
 
-> A full-stack, microservice-based digital banking system built for the **Duothon 6.0** competition.  
-> Aegis provides P2P transfers with double-entry ledger accounting, real-time fraud detection, e-KYC identity management, and a dedicated admin portal for fraud analysts.
+Aegis Finance is a modern, microservice-based core banking platform and mobile application built for maximum security, AI-driven insights, and seamless user experiences.
 
----
+## Architecture
 
-## 📋 Table of Contents
+The system is split into two primary layers:
+1. **Frontend (Mobile App)**: Built with Flutter. Communicates with backend microservices via REST API using JWT Authentication.
+2. **Backend (Spring Boot Microservices)**: 
+    - `api-gateway`: Traefik or Spring Cloud Gateway routing requests.
+    - `identity-service`: Keycloak for OIDC/OAuth2 Authentication and JWT generation.
+    - `core-banking`: Handles accounts, transactions, balances, and card controls.
+    - `fraud-ml-engine`: AI/ML engine for detecting fraudulent transactions.
+    - `fraud-service` / `notification-service`: Supporting services for alerts.
 
-- [Architecture](#-architecture)
-- [Technology Stack](#-technology-stack)
-- [Project Structure](#-project-structure)
-- [Implemented Features](#-implemented-features)
-- [Getting Started](#-getting-started)
-- [Sprint Progress](#-sprint-progress)
-- [Deferred Features](#-deferred-features)
+## Tech Stack
+- **Mobile**: Flutter, Dart, Google Generative AI (`gemini-1.5-pro`)
+- **Backend Services**: Java, Spring Boot, Spring Security
+- **Database / Cache**: PostgreSQL (with Flyway), Redis
+- **Messaging**: Apache Kafka
+- **Identity Provider**: Keycloak
+- **Observability**: Prometheus, Grafana
 
----
+## Quick Start
+To get started with the development environment:
 
-## 🏗️ Architecture
+1. **Boot up Backend Infrastructure**:
+   ```powershell
+   docker-compose up -d
+   ```
+2. **Run Microservices** (Locally):
+   Navigate to each service directory (`services/identity-service`, `services/core-banking`, `services/api-gateway`) and run:
+   ```powershell
+   ./mvnw spring-boot:run
+   ```
+3. **Run Flutter App**:
+   Ensure you have configured `apps/aegis_mobile/.env` with your API URLs and Gemini API key.
+   ```powershell
+   cd apps/aegis_mobile
+   flutter pub get
+   flutter run
+   ```
 
-Aegis follows a **microservice architecture** organized as a monorepo:
-
-```
-┌─────────────────────────────────────────────────────────┐
-│                    Client Layer                         │
-│  ┌───────────────────┐    ┌───────────────────────┐     │
-│  │  Customer Portal  │    │  Admin/Fraud Portal   │     │
-│  │  (React + Vite)   │    │  (React + Vite)       │     │
-│  │  Port: 5173       │    │  Port: 5174           │     │
-│  └────────┬──────────┘    └───────────┬───────────┘     │
-│  ┌────────▼───────────────────────────▼──────────────┐  │
-│  │ Aegis Mobile App (Flutter - iOS/Android)          │  │
-│  └────────┬───────────────────────────┬──────────────┘  │
-└───────────┼───────────────────────────┼─────────────────┘
-            │                           │
-┌───────────┼───────────────────────────┼─────────────────┐
-│  ┌────────▼───────────────────────────▼──────────────┐  │
-│  │           Spring Cloud API Gateway                │  │
-│  │                  Port: 8080                       │  │
-│  └──────────┬─────────────┬─────────────┬────────────┘  │
-│             │Service Layer│             │               │
-│  ┌──────────▼────┐  ┌─────▼─────────┐ ┌─▼─────────────┐ │
-│  │ Core Banking  │  │ Fraud Service │ │Identity Service │
-│  │ Port: 8081    │  │ Port: 8082    │ │ Port: 8085    │ │
-│  │               │  │               │ │               │ │
-│  └──────────┬────┘  └─────┬─────────┘ └─┬─────────────┘ │
-│             │             │             │               │
-│             │       ┌─────▼─────────┐   │               │
-│             │       │ ML Engine     │   │               │
-│             │       │ (FastAPI)     │   │               │
-│             │       │ Port: 8000    │   │               │
-│             │       └─────┬─────────┘   │               │
-└─────────────┼─────────────┼─────────────┼───────────────┘
-              │             │             │
-┌─────────────┼─────────────┼─────────────┼───────────────┐
-│             │    Infrastructure Layer   │               │
-│  ┌──────────▼──┐  ┌────────┐  ┌───────┐ ┌──────────┐    │
-│  │ PostgreSQL  │  │ Kafka  │  │ Redis │ │ Keycloak │    │
-│  │             │  │        │  │       │ │  (IAM)   │    │
-│  └─────────────┘  └────────┘  └───────┘ └──────────┘    │
-│  ┌────────────────┐  ┌───────────────┐                  │
-│  │ Prometheus     │  │ Grafana       │  (Monitoring)    │
-│  └────────────────┘  └───────────────┘                  │
-└─────────────────────────────────────────────────────────┘
-```
-
----
-
-## 🧰 Technology Stack
-
-| Layer | Technology |
-|---|---|
-| **Backend** | Java 17, Spring Boot 3, Python 3.12, FastAPI |
-| **Frontend** | React 19, TypeScript, Vite 8, Tailwind CSS |
-| **Mobile** | Flutter, Dart |
-| **Machine Learning**| XGBoost, Scikit-Learn, Pandas (Transfer Learning Pipeline) |
-| **Database** | PostgreSQL (Neon), Flyway Migrations |
-| **Messaging** | Apache Kafka (Transactional Outbox Pattern) |
-| **Caching** | Redis |
-| **Auth / IAM** | Keycloak (OAuth2 + TOTP MFA) |
-| **Monitoring** | Prometheus, Grafana, Micrometer, Spring Boot Actuator |
-| **Icons** | Lucide React |
-| **Containerization** | Docker Compose |
-
----
-
-## 📁 Project Structure
-
-```
-aegis/
-├── apps/
-│   ├── aegis_mobile/          # Aegis Customer Mobile App (Flutter)
-│   ├── customer-web/          # Customer-facing React portal
-│   │   ├── src/pages/         # Dashboard, Transfers, Notifications, Accounts
-│   └── admin-web/             # Admin/Fraud Analyst React portal
-│       ├── src/pages/         # Overview, SOC Dashboard, Customer Management
-├── services/
-│   ├── api-gateway/           # Spring Cloud API Gateway
-│   ├── core-banking/          # Core Banking Microservice
-│   ├── fraud-service/         # Fraud Detection Microservice
-│   ├── identity-service/      # Digital Identity and e-KYC Microservice
-│   ├── notification-service/  # Async Notification Service (Kafka Listener)
-│   └── fraud-ml-engine/       # Python FastAPI Machine Learning Microservice
-├── infrastructure/
-│   └── docker/
-│       ├── docker-compose.yml # Kafka, Redis, Keycloak, PostgreSQL, Prometheus, Grafana
-│       ├── prometheus/        # Prometheus configuration
-│       └── grafana/           # Grafana dashboards and provisioning
-└── docs/                      # Documentation directory
-```
-
----
-
-## ✅ Implemented Features
-
-### 🏦 Core Banking Service
-- **Double-Entry Ledger** — Every transfer creates a matching DEBIT and CREDIT entry
-- **Pessimistic Locking** — Ordered account locking prevents deadlocks
-- **Idempotency** — Duplicate transfer prevention
-- **Transactional Outbox** — Events saved atomically with ledger changes
-
-### 🛡️ Fraud Detection Service & AI Engine
-- **Transfer Learning ML Engine** — A Python FastAPI microservice running an XGBoost model trained on Kaggle PaySim and fine-tuned with synthetic domain data.
-- **Rules-Based Risk Scoring** — Java engine evaluates limits and blends with the Python ML Engine's risk score.
-- **Hold Boundary** — Transactions with `riskScore >= 70` are marked `HELD`
-- **SOC API** — Exposes `/api/v1/fraud/alerts` for Security Operations Center dashboard
-
-### 🆔 Identity Service (New)
-- **e-KYC Verification** — Manages identity verification statuses (PENDING, VERIFIED, REJECTED)
-- **Risk Profiles** — Individual customer risk scoring and KYC tracking
-
-### 👤 Customer Portal (`customer-web`)
-- **Dashboard & Accounts** — Full portfolio view, dynamic accounts overview
-- **Transfers** — Multi-step secure transfer flow with ledger integration
-- **Notifications** — Premium timeline UI for system, security, and transaction alerts
-- **Security Center** — Account freeze/unfreeze toggle, trusted device management
-
-### 📱 Aegis Mobile App (`aegis_mobile`)
-- **Ultra-Premium UI** — Glassmorphism, advanced staggered animations, and 3D card flips.
-- **Smart Dashboard** — Interactive transaction history and balance overviews.
-- **Offline Payment Module** — Generates secure cryptographic QR tokens for use without internet.
-- **AI Assistant** — Natural language interface for querying spending and managing account security.
-- **Security Center** — Live Security Scoring, MFA management, and trusted device tracking.
-
-### 🔴 Admin / Fraud Analyst Portal (`admin-web`)
-- **SOC Dashboard** — Security Operations Center with live threat monitoring and risk distribution
-- **Customer Management** — View user profiles, KYC statuses, and risk profiles
-- **Held Transfers** — Queue with Approve/Reject flows and fraud reasoning inspection
-- **Audit Log** — Chronological event log with severity badges
-
-### 🔧 Infrastructure & Observability
-- **Docker Compose** — Full stack: PostgreSQL, Kafka, Redis, Keycloak, Prometheus, Grafana
-- **Monitoring Stack** — Prometheus scraping Spring Boot Actuators, centralized Grafana Dashboard for JVM metrics
-- **Spring Cloud API Gateway** — Central routing
-
----
-
-## 🚀 Getting Started
-
-### Prerequisites
-
-- Java 17+
-- Node.js 18+
-- Docker & Docker Compose
-
-### 1. Start Infrastructure
-
-Aegis requires PostgreSQL, Kafka, Redis, Keycloak, Prometheus, and Grafana.
-
-```bash
-cd infrastructure/docker
-docker compose up -d --build
-```
-*Note: Flyway migrations are integrated into the Spring Boot apps. They will automatically construct tables and insert Demo Data.*
-
-### 2. Run Backend Services
-
-```bash
-# Core Banking (port 8081)
-cd services/core-banking
-./mvnw spring-boot:run
-
-# Fraud Service (port 8082)
-cd services/fraud-service
-./mvnw spring-boot:run
-
-# Python ML Engine (port 8000)
-# Option A (Recommended): Run via Docker Compose
-cd infrastructure/docker
-docker compose build fraud-ml-engine
-docker compose up -d fraud-ml-engine
-
-# Option B: Run locally (requires Python 3.12+)
-cd services/fraud-ml-engine
-.\venv\Scripts\activate
-uvicorn app:app --port 8000
-
-# Notification Service (port 8084)
-cd services/notification-service
-./mvnw spring-boot:run
-
-# Identity Service (port 8085)
-cd services/identity-service
-./mvnw spring-boot:run
-
-# API Gateway (port 8080)
-cd services/api-gateway
-./mvnw spring-boot:run
-```
-
-### 3. Run Frontend Apps
-
-```bash
-# Customer Portal (port 5173)
-cd apps/customer-web
-npm install
-npm run dev
-
-# Admin Portal (port 5174)
-cd apps/admin-web
-npm install
-npm run dev
-```
-
-### 4. Run Mobile App
-
-```bash
-# Aegis Mobile App
-cd apps/aegis_mobile
-flutter pub get
-flutter run
-```
-
-### 5. Access Monitoring (Grafana)
-Grafana is available at `http://localhost:3000` (Default credentials: admin/admin).
-Prometheus is available at `http://localhost:9090`.
-
----
-
-
-## 👥 Team
-
-Built by Team Echo Binary for **Duothon 6.0** competition.
-
----
-
-## 📄 License
-
-This project is developed for the Duothon 6.0 competition and is not licensed for commercial use.
+## Documentation
+- [User Guide](docs/user_guide.md) - Instructions for end users.
+- [Testing Guide](docs/testing.md) - Instructions for developers to test APIs.
