@@ -1,76 +1,56 @@
-# 📖 Aegis Finance — User Guide
+# Aegis Finance - User Guide
 
-Welcome to **Aegis Finance**, a secure digital banking platform built for the Duothon 6.0 competition.
+Welcome to the Aegis Finance system! This guide will walk you through the key features of the mobile application and the web portals (Customer & Admin).
 
-## 🔑 Login Instructions
+## Part 1: Mobile Application (Flutter)
 
-Aegis uses **Keycloak** for secure Identity and Access Management (IAM). 
+## 1. Logging In
+1. Open the Aegis app.
+2. Enter your credentials on the Login Screen:
+    - **Username**: `customer-001` or `customer-002` (demo accounts).
+    - **Password**: Your registered password.
+3. Tap **Login**. The app securely authenticates you and loads your personalized dashboard.
 
-1. **Customer Portal**: Navigate to `http://localhost:5173`
-2. **Admin Portal**: Navigate to `http://localhost:5174`
-3. Click **Sign In** on the login screen. You will be redirected to the Keycloak login page.
-4. Use the following default credentials to log in:
-   - **Email/Username**: `you@aegis.finance`
-   - **Password**: `password123`
+## 2. Viewing Your Dashboard
+Once logged in, the **Home Dashboard** provides a unified view of your finances:
+- **Total Balance**: Displayed at the top of the screen.
+- **Active Accounts**: Swipe through your available checking and savings accounts.
+- **Quick Actions**: Use the middle menu to easily jump to Transfers, QR Pay, or Card Management.
+- **Recent Transactions**: Scroll down to see a real-time list of your latest incoming and outgoing transactions.
 
----
+## 3. Transferring Funds
+To send money to another account:
+1. Tap the **Transfer** icon under Quick Actions.
+2. **From Account**: Select the account you wish to debit from the dropdown menu (this lists all your active accounts).
+3. **To Account**: Enter the recipient's Account Number or select a saved beneficiary.
+4. **Amount**: Enter the amount you wish to transfer.
+5. Tap **Send Money**. The dashboard will automatically refresh with your new balance and transaction history once successful.
 
-## 🧑‍💻 Using the Customer Portal
+## 4. Managing Your Cards
+You can control the security of your debit/credit cards directly from the app.
+1. Tap the **Cards** icon on the dashboard.
+2. **Card Details**: Your active card will be displayed in 3D. Tap the card to flip it over and view the CVV.
+3. **Security Toggles**:
+    - **Freeze Card**: Instantly lock your card to prevent any new transactions.
+    - **Online Payments**: Enable/disable internet-based purchases.
+    - **International Payments**: Enable/disable transactions processed outside your home country.
+    - **Contactless (NFC)**: Enable/disable tap-to-pay functionality.
+4. Any changes you make are instantly synchronized with the banking backend to ensure your funds remain secure.
 
-### 1. Dashboard & Accounts
-- View your total portfolio balance and active accounts.
-- The **Accounts** page shows detailed individual card balances and available credit limits.
-- Click the **copy icon** next to an account number to copy it to your clipboard.
+## 5. Using Aegis AI Assistant
+Aegis AI is your personal financial assistant powered by Google Gemini.
+1. Tap the **Headset/Support** icon in the top right corner of the Home screen.
+2. You can type a question like "How much did I spend recently?" or "What is my total balance?".
+3. Because Aegis AI has secure access to your financial context, it provides personalized, accurate answers based on your real data. You can also tap the quick-prompt chips (e.g., "Spending summary") to get instant insights.
 
-### 2. Making a Transfer
-1. Go to the **Beneficiaries** page.
-2. Select a beneficiary from the list or click "Add New" (mock UI for adding).
-3. Click "Send Money" on a beneficiary card.
-4. Enter the amount to transfer.
-5. Click **Preview Transfer** to review details.
-6. Click **Confirm & Send**.
+## Part 2: Customer Web App
+The Customer Web App allows users to access their banking details from any browser.
+1. **Login**: Go to the Customer Web App URL and log in using your Keycloak credentials.
+2. **Dashboard**: View your total balance, active accounts, and recent transactions on a large screen.
+3. **AI Widget**: Click the AI floating button on the bottom right to open the Aegis AI Assistant in your browser.
 
-*Note: If the transfer amount triggers a fraud rule (e.g. amount > $10,000), it will be flagged as `HELD` and await Admin approval.*
-
-### 3. Viewing Transactions & Notifications
-- Go to the **Transactions** page. You will see a Double-Entry Ledger view of all IN and OUT transactions. You can filter by status (Completed, Held, Rejected).
-- Go to the **Notifications** page to see real-time alerts for security events, transaction completions, and system messages in a premium timeline interface.
-
-### 4. Security Center
-- Freeze or unfreeze your account instantly.
-- View real-time security alerts (e.g., unrecognized logins).
-
----
-
-## 🛡️ Using the Admin (Fraud Analyst) Portal
-
-### 1. Overview & SOC Dashboard
-- **Overview**: Real-time dashboard of platform metrics (Total volume, held transfers, etc.) and risk score distribution.
-- **SOC Dashboard**: Security Operations Center interface to monitor live threat activity, investigate medium/high-risk alerts, and block suspected fraudulent accounts.
-
-### 2. Customer Management
-- Navigate to the **Customers** page.
-- Review all customer profiles across the bank.
-- Monitor e-KYC Verification statuses (VERIFIED, PENDING, REJECTED) served by the Identity Service.
-- Track risk scores per individual customer profile.
-
-### 3. Held Transfers (Fraud Review)
-- When a customer makes a high-value transfer, it will appear here.
-- The sender's balance is **NOT** deducted until you approve it (Double-entry principle).
-- Click the **eye icon** to view the exact Risk Score and Fraud Reasons.
-- Click **Approve** (commits the ledger entry) or **Reject** (cancels it).
-
-### 4. Audit Log
-- Search through every system event.
-- Filter by Severity (Info, Warning, Critical) to find anomalies.
-
----
-
-## 🛠️ Developer Notes
-
-- **Swagger/OpenAPI UI**: Available at `http://localhost:8081/swagger-ui.html` (Core Banking), `http://localhost:8082/swagger-ui.html` (Fraud Service), and `http://localhost:8000/docs` (Python ML Engine).
-- **Actuator Health & Metrics**: `http://localhost:8081/actuator/health` and `/actuator/prometheus` (for all backend services).
-- **Database**: Connect to PostgreSQL locally on port `5432` with username `postgres`, password `password`.
-- **Kafka**: Running on `localhost:9092`. The `transaction-events` topic receives outbox polling events.
-- **Monitoring (Grafana)**: Running on `http://localhost:3000` (User/Pass: `admin/admin`). Displays JVM memory usage, API traffic, and system vitals from Prometheus (which runs on `http://localhost:9090`).
-- **Machine Learning**: The ML Engine uses Transfer Learning. To retrain the base model, place the Kaggle PaySim dataset in `services/fraud-ml-engine/data/paysim.csv` and run `train_base_model.py` followed by `fine_tune_model.py`.
+## Part 3: Admin Web App
+The Admin Web App is meant for banking staff to monitor and control the system.
+1. **Login**: Log in using an administrator account (e.g., `admin-001`).
+2. **Dashboard**: View system-wide metrics, active users, and total transaction volumes.
+3. **Fraud Monitoring**: Monitor alerts triggered by the Fraud ML Engine.

@@ -1,6 +1,7 @@
 import { Bell, ShieldCheck } from 'lucide-react';
 import { NavLink, Outlet } from 'react-router-dom';
 import Sidebar from './Sidebar';
+import AiAssistantWidget from './AiAssistantWidget';
 
 export default function AppLayout() {
   return (
@@ -19,6 +20,7 @@ export default function AppLayout() {
         <MobileNav to="/beneficiaries" label="Send" icon="↑" />
         <MobileNav to="/security" label="Security" icon="◈" />
       </nav>
+      <AiAssistantWidget />
     </div>
   );
 }
