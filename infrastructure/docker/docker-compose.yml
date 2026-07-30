@@ -39,6 +39,20 @@ services:
     networks:
       - aegis_network
 
+  # Vault for Secrets Management
+  vault:
+    image: hashicorp/vault:latest
+    container_name: aegis-vault
+    environment:
+      - VAULT_DEV_ROOT_TOKEN_ID=root
+      - VAULT_DEV_LISTEN_ADDRESS=0.0.0.0:8200
+    ports:
+      - "8200:8200"
+    cap_add:
+      - IPC_LOCK
+    networks:
+      - aegis_network
+
   fraud-ml-engine:
     build:
       context: ../../services/fraud-ml-engine
