@@ -51,15 +51,31 @@ class _AiAssistantScreenState extends State<AiAssistantScreen> {
       if (apiKey == null || apiKey == 'YOUR_GEMINI_API_KEY_HERE') {
         throw Exception('API key not found');
       }
-      final model = GenerativeModel(model: 'gemini-1.5-pro', apiKey: apiKey);
+      final modelsToTry = ['gemini-3.6-flash', 'gemini-3.1-pro', 'gemini-2.5-pro', 'gemini-1.5-pro'];
       final prompt = 'You are Aegis AI, a helpful AI financial assistant for Aegis Finance. You are talking to the user. Here is the user\'s financial context in JSON format: $_financialContext. The user asks: $userText. Provide a short, friendly, and helpful response. Do not expose the raw JSON to the user. Keep it brief and conversational. If the context does not have the answer, just say so.';
       final content = [Content.text(prompt)];
-      final response = await model.generateContent(content);
+      
+      GenerateContentResponse? response;
+      for (final modelName in modelsToTry) {
+        try {
+          final model = GenerativeModel(model: modelName, apiKey: apiKey);
+          response = await model.generateContent(content);
+          if (response.text != null && response.text!.trim().isNotEmpty) {
+            break;
+          }
+        } catch (e) {
+          print('Model $modelName failed, falling back to next... Error: $e');
+        }
+      }
+
+      if (response == null || response.text == null || response.text!.trim().isEmpty) {
+        throw Exception('All Gemini models failed to generate a response');
+      }
       
       if (mounted) {
         setState(() {
           _isTyping = false;
-          _messages.add({'sender': 'bot', 'text': response.text?.trim() ?? 'I could not generate a response.'});
+          _messages.add({'sender': 'bot', 'text': response!.text!.trim()});
         });
         _scrollToBottom();
       }
