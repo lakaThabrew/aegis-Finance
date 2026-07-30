@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'dart:math' as math;
+import '../services/api_service.dart';
 
 class CardManagementScreen extends StatefulWidget {
   const CardManagementScreen({super.key});
@@ -9,6 +10,12 @@ class CardManagementScreen extends StatefulWidget {
 }
 
 class _CardManagementScreenState extends State<CardManagementScreen> with SingleTickerProviderStateMixin {
+  bool _isLoading = true;
+  String? _cardId;
+  String _cardNumber = '**** **** **** ****';
+  String _expiry = '**/**';
+  String _cvv = '***';
+  
   bool _isCardFrozen = false;
   bool _onlinePayments = true;
   bool _internationalPayments = false;
@@ -20,6 +27,55 @@ class _CardManagementScreenState extends State<CardManagementScreen> with Single
   void initState() {
     super.initState();
     _flipController = AnimationController(vsync: this, duration: const Duration(milliseconds: 600));
+    _fetchCardData();
+  }
+
+  Future<void> _fetchCardData() async {
+    final cards = await ApiService().getCards();
+    if (cards.isNotEmpty) {
+      final card = cards.first;
+      setState(() {
+        _cardId = card['id'];
+        _cardNumber = card['cardNumber'] ?? _cardNumber;
+        _expiry = card['expiry'] ?? _expiry;
+        _cvv = card['cvv'] ?? _cvv;
+        _isCardFrozen = card['isFrozen'] ?? false;
+        _onlinePayments = card['onlinePayments'] ?? true;
+        _internationalPayments = card['internationalPayments'] ?? false;
+        _contactless = card['contactless'] ?? true;
+        _isLoading = false;
+      });
+    } else {
+      setState(() => _isLoading = false);
+    }
+  }
+
+  Future<void> _updateToggle(String key, bool value) async {
+    if (_cardId == null) return;
+    
+    // Optimistic UI update
+    setState(() {
+      if (key == 'isFrozen') _isCardFrozen = value;
+      if (key == 'onlinePayments') _onlinePayments = value;
+      if (key == 'internationalPayments') _internationalPayments = value;
+      if (key == 'contactless') _contactless = value;
+    });
+
+    final success = await ApiService().updateCardControls(_cardId!, {key: value});
+    if (!success) {
+      // Revert if failed
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Failed to update card settings.')),
+        );
+        setState(() {
+          if (key == 'isFrozen') _isCardFrozen = !value;
+          if (key == 'onlinePayments') _onlinePayments = !value;
+          if (key == 'internationalPayments') _internationalPayments = !value;
+          if (key == 'contactless') _contactless = !value;
+        });
+      }
+    }
   }
 
   @override
@@ -36,6 +92,13 @@ class _CardManagementScreenState extends State<CardManagementScreen> with Single
     }
   }
 
+  String _formatCardNumber(String number) {
+    if (number.length >= 16) {
+      return '****  ****  ****  ${number.substring(number.length - 4)}';
+    }
+    return number;
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -46,66 +109,70 @@ class _CardManagementScreenState extends State<CardManagementScreen> with Single
         elevation: 0,
         iconTheme: const IconThemeData(color: Colors.white),
       ),
-      body: SingleChildScrollView(
-        padding: const EdgeInsets.all(24.0),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Center(
-              child: const Text('Tap card to view details', style: TextStyle(color: Colors.white38, fontSize: 12)),
-            ),
-            const SizedBox(height: 12),
-            // 3D Flip Card
-            GestureDetector(
-              onTap: _toggleFlip,
-              child: AnimatedBuilder(
-                animation: _flipController,
-                builder: (context, child) {
-                  final angle = _flipController.value * math.pi;
-                  final isFront = angle < (math.pi / 2);
-                  return Transform(
-                    transform: Matrix4.identity()
-                      ..setEntry(3, 2, 0.001)
-                      ..rotateY(angle),
-                    alignment: Alignment.center,
-                    child: isFront ? _buildCardFront() : _buildCardBack(),
-                  );
-                },
-              ),
-            ),
-            const SizedBox(height: 32),
-            const Text('Card Controls', style: TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold)),
-            const SizedBox(height: 16),
-            _buildToggleItem('Freeze Card', 'Temporarily disable all transactions', _isCardFrozen, (v) {
-              setState(() => _isCardFrozen = v);
-            }, isWarning: true),
-            _buildToggleItem('Online Payments', 'Allow e-commerce transactions', _onlinePayments, (v) {
-              setState(() => _onlinePayments = v);
-            }),
-            _buildToggleItem('International Payments', 'Allow payments outside UAE', _internationalPayments, (v) {
-              setState(() => _internationalPayments = v);
-            }),
-            _buildToggleItem('Contactless (NFC)', 'Allow tap-to-pay', _contactless, (v) {
-              setState(() => _contactless = v);
-            }),
-            const SizedBox(height: 32),
-            Container(
-              width: double.infinity,
-              height: 54,
-              decoration: BoxDecoration(
-                border: Border.all(color: Colors.redAccent.withOpacity(0.5)),
-                borderRadius: BorderRadius.circular(14),
-                color: Colors.redAccent.withOpacity(0.05),
-              ),
-              child: TextButton.icon(
-                onPressed: () {},
-                icon: const Icon(Icons.report_problem_rounded, color: Colors.redAccent),
-                label: const Text('Report Lost or Stolen', style: TextStyle(color: Colors.redAccent, fontSize: 16, fontWeight: FontWeight.bold)),
-              ),
-            ),
-          ],
-        ),
-      ),
+      body: _isLoading
+          ? const Center(child: CircularProgressIndicator(color: Color(0xFF4178F4)))
+          : _cardId == null
+              ? const Center(child: Text('No active cards found.', style: TextStyle(color: Colors.white)))
+              : SingleChildScrollView(
+                  padding: const EdgeInsets.all(24.0),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Center(
+                        child: const Text('Tap card to view details', style: TextStyle(color: Colors.white38, fontSize: 12)),
+                      ),
+                      const SizedBox(height: 12),
+                      // 3D Flip Card
+                      GestureDetector(
+                        onTap: _toggleFlip,
+                        child: AnimatedBuilder(
+                          animation: _flipController,
+                          builder: (context, child) {
+                            final angle = _flipController.value * math.pi;
+                            final isFront = angle < (math.pi / 2);
+                            return Transform(
+                              transform: Matrix4.identity()
+                                ..setEntry(3, 2, 0.001)
+                                ..rotateY(angle),
+                              alignment: Alignment.center,
+                              child: isFront ? _buildCardFront() : _buildCardBack(),
+                            );
+                          },
+                        ),
+                      ),
+                      const SizedBox(height: 32),
+                      const Text('Card Controls', style: TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold)),
+                      const SizedBox(height: 16),
+                      _buildToggleItem('Freeze Card', 'Temporarily disable all transactions', _isCardFrozen, (v) {
+                        _updateToggle('isFrozen', v);
+                      }, isWarning: true),
+                      _buildToggleItem('Online Payments', 'Allow e-commerce transactions', _onlinePayments, (v) {
+                        _updateToggle('onlinePayments', v);
+                      }),
+                      _buildToggleItem('International Payments', 'Allow payments outside UAE', _internationalPayments, (v) {
+                        _updateToggle('internationalPayments', v);
+                      }),
+                      _buildToggleItem('Contactless (NFC)', 'Allow tap-to-pay', _contactless, (v) {
+                        _updateToggle('contactless', v);
+                      }),
+                      const SizedBox(height: 32),
+                      Container(
+                        width: double.infinity,
+                        height: 54,
+                        decoration: BoxDecoration(
+                          border: Border.all(color: Colors.redAccent.withOpacity(0.5)),
+                          borderRadius: BorderRadius.circular(14),
+                          color: Colors.redAccent.withOpacity(0.05),
+                        ),
+                        child: TextButton.icon(
+                          onPressed: () {},
+                          icon: const Icon(Icons.report_problem_rounded, color: Colors.redAccent),
+                          label: const Text('Report Lost or Stolen', style: TextStyle(color: Colors.redAccent, fontSize: 16, fontWeight: FontWeight.bold)),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
     );
   }
 
@@ -149,13 +216,13 @@ class _CardManagementScreenState extends State<CardManagementScreen> with Single
               Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  const Text('****  ****  ****  1234', style: TextStyle(color: Colors.white, fontSize: 24, letterSpacing: 4, fontWeight: FontWeight.bold)),
+                  Text(_formatCardNumber(_cardNumber), style: const TextStyle(color: Colors.white, fontSize: 24, letterSpacing: 4, fontWeight: FontWeight.bold)),
                   const SizedBox(height: 16),
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: const [
-                      Text('CUSTOMER NAME', style: TextStyle(color: Colors.white70, fontSize: 14, letterSpacing: 1)),
-                      Text('12/29', style: TextStyle(color: Colors.white, fontSize: 14, fontWeight: FontWeight.bold)),
+                    children: [
+                      const Text('CUSTOMER NAME', style: TextStyle(color: Colors.white70, fontSize: 14, letterSpacing: 1)),
+                      Text(_expiry, style: const TextStyle(color: Colors.white, fontSize: 14, fontWeight: FontWeight.bold)),
                     ],
                   ),
                 ],
@@ -200,7 +267,7 @@ class _CardManagementScreenState extends State<CardManagementScreen> with Single
                   Container(
                     height: 36, width: 50, color: Colors.white,
                     alignment: Alignment.center,
-                    child: const Text('842', style: TextStyle(color: Colors.black, fontWeight: FontWeight.bold)),
+                    child: Text(_cvv, style: const TextStyle(color: Colors.black, fontWeight: FontWeight.bold)),
                   ),
                 ],
               ),

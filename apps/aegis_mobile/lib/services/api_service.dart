@@ -157,4 +157,31 @@ class ApiService {
       return false;
     }
   }
+
+  Future<List<Map<String, dynamic>>> getCards() async {
+    try {
+      final response = await _client.get(Uri.parse('$_coreBankingUrl/cards'));
+      if (response.statusCode == 200) {
+        final data = jsonDecode(response.body) as List<dynamic>;
+        return data.cast<Map<String, dynamic>>();
+      }
+      return [];
+    } catch (e) {
+      print('Error fetching cards: $e');
+      return [];
+    }
+  }
+
+  Future<bool> updateCardControls(String cardId, Map<String, bool> controls) async {
+    try {
+      final response = await _client.patch(
+        Uri.parse('$_coreBankingUrl/cards/$cardId/controls'),
+        body: jsonEncode(controls),
+      );
+      return response.statusCode == 200;
+    } catch (e) {
+      print('Error updating card controls: $e');
+      return false;
+    }
+  }
 }
