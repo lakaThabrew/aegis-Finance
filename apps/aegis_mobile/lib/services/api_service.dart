@@ -30,9 +30,9 @@ class ApiService {
 
   bool get isAuthenticated => _authToken != null;
 
-  String get _keycloakUrl => dotenv.env['KEYCLOAK_TOKEN_URL'] ?? 'http://127.0.0.1:8080/realms/aegis/protocol/openid-connect/token';
-  String get _apiGateway => dotenv.env['API_GATEWAY_URL'] ?? 'http://127.0.0.1:8084';
-  String get _coreBankingUrl => dotenv.env['CORE_BANKING_URL'] ?? 'http://127.0.0.1:8081/api/v1/core';
+  String get _keycloakUrl => dotenv.env['KEYCLOAK_TOKEN_URL'] ?? 'http://10.10.11.63:8080/realms/aegis/protocol/openid-connect/token';
+  String get _apiGateway => dotenv.env['API_GATEWAY_URL'] ?? 'http://10.10.11.63:8084';
+  String get _coreBankingUrl => dotenv.env['CORE_BANKING_URL'] ?? 'http://10.10.11.63:8081/api/v1/core';
 
   Future<bool> login(String username, String password) async {
     try {
