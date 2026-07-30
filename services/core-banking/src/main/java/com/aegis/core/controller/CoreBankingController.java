@@ -63,9 +63,11 @@ public class CoreBankingController {
     public ResponseEntity<List<Transaction>> getTransactions(@AuthenticationPrincipal Jwt jwt) {
         String customerId = getCustomerId(jwt);
         List<Account> accounts = accountRepository.findByCustomerId(customerId);
+        List<String> accountNumbers = accounts.stream().map(Account::getAccountNumber).collect(Collectors.toList());
         // Find transactions where sender or receiver is one of the user's accounts
         List<Transaction> transactions = transactionRepository.findAll().stream()
-                .filter(t -> accounts.contains(t.getSenderAccount()) || accounts.contains(t.getReceiverAccount()))
+                .filter(t -> (t.getSenderAccount() != null && accountNumbers.contains(t.getSenderAccount().getAccountNumber())) || 
+                             (t.getReceiverAccount() != null && accountNumbers.contains(t.getReceiverAccount().getAccountNumber())))
                 .collect(Collectors.toList());
         return ResponseEntity.ok(transactions);
     }

@@ -1,17 +1,7 @@
-import { useState } from 'react';
-import { Search, CheckCircle2, AlertTriangle, ShieldAlert, Clock } from 'lucide-react';
+import { useState, useEffect } from 'react';
+import { Search, CheckCircle2, AlertTriangle, ShieldAlert, Clock, Loader2 } from 'lucide-react';
 import type { AuditEntry } from '../types';
-
-const MOCK_AUDIT: AuditEntry[] = [
-  { id: 'a1', event: 'Transfer TXN-5A4F2E held — Risk Score 85', actor: 'SYSTEM', severity: 'critical', timestamp: '2026-07-27 10:55 AM' },
-  { id: 'a2', event: 'Fraud evaluation performed on TXN-5A4F2E', actor: 'SYSTEM', severity: 'warning', timestamp: '2026-07-27 10:55 AM' },
-  { id: 'a3', event: 'Transfer TXN-8F3A1B completed — $1,500', actor: 'SYSTEM', severity: 'info', timestamp: '2026-07-27 09:15 AM' },
-  { id: 'a4', event: 'Login from admin@aegis.io via Keycloak', actor: 'admin@aegis.io', severity: 'info', timestamp: '2026-07-27 09:00 AM' },
-  { id: 'a5', event: 'Transfer TXN-7C2D9A held — Risk Score 75', actor: 'SYSTEM', severity: 'critical', timestamp: '2026-07-27 08:50 AM' },
-  { id: 'a6', event: 'Account AGS-0045-2024 frozen by customer request', actor: 'customer-045', severity: 'warning', timestamp: '2026-07-26 11:30 PM' },
-  { id: 'a7', event: 'New beneficiary added: Charlie Lee', actor: 'customer-001', severity: 'info', timestamp: '2026-07-26 10:45 PM' },
-  { id: 'a8', event: 'Unrecognized device login blocked for customer-003', actor: 'SYSTEM', severity: 'critical', timestamp: '2026-07-26 09:15 PM' },
-];
+import api from '../api/client';
 
 const SEV_STYLE: Record<string, string> = {
   info: 'bg-blue-500/10 text-blue-400 border-blue-500/20',
@@ -25,16 +15,48 @@ const SEV_ICON: Record<string, React.ReactNode> = {
   critical: <ShieldAlert className="w-3.5 h-3.5 shrink-0" />,
 };
 
+function formatDate(iso: string) {
+  if (!iso) return '';
+  return new Date(iso).toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' });
+}
+
 export default function AuditLogPage() {
   const [search, setSearch] = useState('');
   const [filter, setFilter] = useState<string>('ALL');
+  const [logs, setLogs] = useState<AuditEntry[]>([]);
+  const [loading, setLoading] = useState(true);
 
-  const filtered = MOCK_AUDIT.filter(entry => {
+  useEffect(() => {
+    async function loadLogs() {
+      try {
+        const res = await api.get('/api/v1/core/admin/audit');
+        const mapped = res.data.map((a: any) => ({
+          id: a.id,
+          event: a.eventType,
+          actor: 'System',
+          severity: a.eventType.includes('Held') || a.eventType.includes('Rejected') ? 'warning' : 'info',
+          timestamp: formatDate(a.createdAt || new Date().toISOString())
+        }));
+        setLogs(mapped);
+      } catch (e) {
+        console.error('Failed to load audit logs', e);
+      } finally {
+        setLoading(false);
+      }
+    }
+    loadLogs();
+  }, []);
+
+  const filtered = logs.filter(entry => {
     const matchSearch = entry.event.toLowerCase().includes(search.toLowerCase()) ||
                         entry.actor.toLowerCase().includes(search.toLowerCase());
     const matchFilter = filter === 'ALL' || entry.severity === filter.toLowerCase();
     return matchSearch && matchFilter;
   });
+
+  if (loading) {
+    return <div className="flex items-center justify-center h-64 text-white"><Loader2 className="w-8 h-8 animate-spin" /></div>;
+  }
 
   return (
     <div className="page-enter space-y-6">

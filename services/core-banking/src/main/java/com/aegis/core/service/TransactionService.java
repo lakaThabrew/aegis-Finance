@@ -115,6 +115,104 @@ public class TransactionService {
         return tx;
     }
 
+    @Transactional
+    public Transaction approveTransaction(UUID transactionId) {
+        Transaction tx = transactionRepository.findById(transactionId)
+                .orElseThrow(() -> new RuntimeException("Transaction not found"));
+        
+        if (!"HELD".equals(tx.getStatus())) {
+            throw new RuntimeException("Transaction is not in HELD status");
+        }
+
+        // Lock accounts in consistent order to prevent deadlock
+        String acc1 = tx.getSenderAccount().getAccountNumber();
+        String acc2 = tx.getReceiverAccount().getAccountNumber();
+        
+        Account sender, receiver;
+        if (acc1.compareTo(acc2) < 0) {
+            sender = accountRepository.findByAccountNumberForUpdate(acc1).orElseThrow();
+            receiver = accountRepository.findByAccountNumberForUpdate(acc2).orElseThrow();
+        } else {
+            receiver = accountRepository.findByAccountNumberForUpdate(acc2).orElseThrow();
+            sender = accountRepository.findByAccountNumberForUpdate(acc1).orElseThrow();
+        }
+
+        if (sender.getBalance().compareTo(tx.getAmount()) < 0) {
+            throw new RuntimeException("Insufficient funds for approval");
+        }
+
+        tx.setStatus("APPROVED");
+        tx.setCompletedAt(LocalDateTime.now());
+        
+        BigDecimal senderBefore = sender.getBalance();
+        BigDecimal senderAfter = senderBefore.subtract(tx.getAmount());
+        sender.setBalance(senderAfter);
+        
+        BigDecimal receiverBefore = receiver.getBalance();
+        BigDecimal receiverAfter = receiverBefore.add(tx.getAmount());
+        receiver.setBalance(receiverAfter);
+
+        accountRepository.save(sender);
+        accountRepository.save(receiver);
+
+        LedgerEntry debit = new LedgerEntry();
+        debit.setTransaction(tx);
+        debit.setAccount(sender);
+        debit.setEntryType("DEBIT");
+        debit.setAmount(tx.getAmount());
+        debit.setBalanceBefore(senderBefore);
+        debit.setBalanceAfter(senderAfter);
+        
+        LedgerEntry credit = new LedgerEntry();
+        credit.setTransaction(tx);
+        credit.setAccount(receiver);
+        credit.setEntryType("CREDIT");
+        credit.setAmount(tx.getAmount());
+        credit.setBalanceBefore(receiverBefore);
+        credit.setBalanceAfter(receiverAfter);
+
+        ledgerEntryRepository.save(debit);
+        ledgerEntryRepository.save(credit);
+
+        transactionRepository.save(tx);
+
+        OutboxEvent event = new OutboxEvent();
+        event.setAggregateType("Transaction");
+        event.setAggregateId(tx.getId().toString());
+        event.setEventType("TransactionApproved");
+        String payload = String.format("{\"transactionId\":\"%s\", \"status\":\"APPROVED\", \"amount\":%s}", 
+            tx.getId(), tx.getAmount());
+        event.setPayload(payload);
+        outboxEventRepository.save(event);
+
+        return tx;
+    }
+
+    @Transactional
+    public Transaction rejectTransaction(UUID transactionId) {
+        Transaction tx = transactionRepository.findById(transactionId)
+                .orElseThrow(() -> new RuntimeException("Transaction not found"));
+        
+        if (!"HELD".equals(tx.getStatus())) {
+            throw new RuntimeException("Transaction is not in HELD status");
+        }
+
+        tx.setStatus("REJECTED");
+        tx.setCompletedAt(LocalDateTime.now());
+        transactionRepository.save(tx);
+
+        OutboxEvent event = new OutboxEvent();
+        event.setAggregateType("Transaction");
+        event.setAggregateId(tx.getId().toString());
+        event.setEventType("TransactionRejected");
+        String payload = String.format("{\"transactionId\":\"%s\", \"status\":\"REJECTED\", \"amount\":%s}", 
+            tx.getId(), tx.getAmount());
+        event.setPayload(payload);
+        outboxEventRepository.save(event);
+
+        return tx;
+    }
+
     private int calculateMockRisk(TransferRequest request) {
         return request.getAmount().compareTo(new BigDecimal("10000")) > 0 ? 85 : 10;
     }
