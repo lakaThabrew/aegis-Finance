@@ -9,15 +9,15 @@ This guide explains how to test the Aegis microservices and the Flutter frontend
 **Manual Method**: Refer to the manual startup steps in the README to start services individually.
 
 ### Step 2: Obtain a JWT Token from Keycloak
-Before testing the Core Banking APIs, you must authenticate as a user (e.g., `customer-001`).
+Before testing the Core Banking APIs, you must authenticate as a user .
 
 ```bash
 curl -X POST http://127.0.0.1:8080/realms/aegis/protocol/openid-connect/token \
   -H "Content-Type: application/x-www-form-urlencoded" \
   -d "grant_type=password" \
   -d "client_id=aegis-frontend" \
-  -d "username=customer-001" \
-  -d "password=yourpassword"
+  -d "username=you@aegis.finance" \
+  -d "password=password123"
 ```
 *Copy the `access_token` from the JSON response. You will use this in the `Authorization` header for subsequent requests.*
 
@@ -67,6 +67,7 @@ curl -X PATCH http://127.0.0.1:8081/api/v1/core/cards/<CARD_ID>/controls \
 - **Aegis AI Assistant**: 
   1. Open the AI Assistant from the top right of the Dashboard.
   2. Ask "What is my balance?" and ensure the AI accurately responds with the balance displayed on your Dashboard.
+  3. Ask "Transfer $10 to AGS-0077-2024" and verify that the AI successfully initiates and processes the transaction workflow.
 
 ## 3. Testing the Web Applications
 

@@ -1,3 +1,6 @@
+## For submission for Duothon 6.0 organized by NSBM.
+
+
 # Aegis Finance 🛡️
 
 Aegis Finance is a modern, microservice-based core banking platform and mobile application built for maximum security, AI-driven insights, and seamless user experiences.
@@ -17,11 +20,11 @@ The system is split into multiple primary layers:
     - `fraud-service` / `notification-service`: Supporting services for alerts.
 
 ## Tech Stack
-- **Mobile**: Flutter, Dart, Google Generative AI (`gemini-1.5-pro`)
+- **Mobile**: Flutter, Dart, and Google Generative AI with a multi-model Gemini fallback strategy (`gemini-3.6-flash`, `gemini-3.1-pro`, `gemini-2.5-pro`, and `gemini-1.5-pro`) for intelligent conversational insights.
 - **Web**: React, Node.js
 - **Backend Services**: Java, Spring Boot, Spring Security, Python (for ML)
-- **Database / Cache**: PostgreSQL (with Flyway), Redis
-- **Secrets Management**: HashiCorp Vault
+- **Database / Cache**: PostgreSQL (with Flyway), Redis (Integrated for caching across services)
+- **Secrets Management**: HashiCorp Vault (Centralized secure secret management)
 - **Messaging**: Apache Kafka
 - **Identity Provider**: Keycloak
 - **Observability**: Prometheus, Grafana
@@ -64,7 +67,8 @@ If you prefer to start services individually:
    ```powershell
    ./mvnw spring-boot:run
    ```
-4. **Run Fraud ML Engine**:
+4. (Optional if you run only this)
+   **Run Fraud ML Engine**:
    Navigate to `services/fraud-ml-engine`, install dependencies and run the engine:
    ```powershell
    pip install -r requirements.txt
@@ -94,3 +98,12 @@ Use the following Keycloak account for the customer portal at `http://localhost:
 ## Documentation
 - [User Guide](docs/user_guide.md) - Instructions for end users.
 - [Testing Guide](docs/testing.md) - Instructions for developers to test APIs and Apps.
+
+## Future Deployment Plan & Production Architecture
+
+While this repository currently provides a fully functional prototype utilizing Docker and Docker-Compose for rapid local deployment, our overarching vision (as detailed in our Phase 01 RECON report) extends to a fully resilient cloud-native ecosystem.
+
+For enterprise production deployment, Aegis Finance is designed to migrate to:
+- **Kubernetes (K8s):** To orchestrate our microservices, enabling automated horizontal scaling, self-healing, and zero-downtime deployments.
+- **Istio Service Mesh:** To enforce a strict Zero-Trust network, ensuring all internal microservice communications are secured via mTLS encryption and traffic control.
+- **Multi-Region Disaster Recovery:** To guarantee high availability and absolute business continuity even in the event of major infrastructure failures.
