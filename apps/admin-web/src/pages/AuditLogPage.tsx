@@ -32,10 +32,10 @@ export default function AuditLogPage() {
         const res = await api.get('/api/v1/core/admin/audit');
         const mapped = res.data.map((a: any) => ({
           id: a.id,
-          event: a.eventType,
-          actor: 'System',
-          severity: a.eventType.includes('Held') || a.eventType.includes('Rejected') ? 'warning' : 'info',
-          timestamp: formatDate(a.createdAt || new Date().toISOString())
+          event: a.message || a.eventType,
+          actor: a.actor || 'System',
+          severity: a.severity || 'info',
+          timestamp: formatDate(a.createdAt)
         }));
         setLogs(mapped);
       } catch (e) {

@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import axios from 'axios';
 import { AlertTriangle, CheckCircle2, XCircle, X, Eye, Loader2 } from 'lucide-react';
 import type { HeldTransfer } from '../types';
 import api from '../api/client';
@@ -55,7 +56,15 @@ export default function HeldTransfersPage() {
       setTransfers(prev => prev.map(t => t.id === id ? { ...t, status: action } : t));
     } catch (e) {
       console.error(`Failed to ${action.toLowerCase()} transfer`, e);
-      alert(`Failed to ${action.toLowerCase()} transfer`);
+      const status = axios.isAxiosError(e) ? e.response?.status : undefined;
+      if (status === 404 || status === 409) {
+        await fetchTransfers();
+        alert('This transfer was already decided or is no longer available. The list has been refreshed.');
+      } else if (status === 422) {
+        alert('This transfer cannot be approved because the sender has insufficient funds.');
+      } else {
+        alert(`Failed to ${action.toLowerCase()} transfer`);
+      }
     } finally {
       setActionLoading(null);
       setSelected(null);
