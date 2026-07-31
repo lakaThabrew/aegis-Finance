@@ -1,16 +1,20 @@
 package com.aegis.core.controller;
 
 import com.aegis.core.dto.TransferRequest;
+import com.aegis.core.dto.CustomerProfileUpdateRequest;
 import com.aegis.core.entity.*;
 import com.aegis.core.repository.*;
+import com.aegis.core.service.CustomerAdminService;
 import com.aegis.core.service.TransactionService;
+import jakarta.validation.Valid;
 import org.springframework.http.ResponseEntity;
+import org.springframework.http.HttpStatus;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.server.ResponseStatusException;
 
 import java.util.List;
-import java.util.stream.Collectors;
 
 @RestController
 @RequestMapping("/api/v1/core")
@@ -20,15 +24,18 @@ public class CoreBankingController {
     private final BeneficiaryRepository beneficiaryRepository;
     private final TransactionRepository transactionRepository;
     private final TransactionService transactionService;
+    private final CustomerAdminService customerAdminService;
 
     public CoreBankingController(AccountRepository accountRepository,
                                  BeneficiaryRepository beneficiaryRepository,
                                  TransactionRepository transactionRepository,
-                                 TransactionService transactionService) {
+                                 TransactionService transactionService,
+                                 CustomerAdminService customerAdminService) {
         this.accountRepository = accountRepository;
         this.beneficiaryRepository = beneficiaryRepository;
         this.transactionRepository = transactionRepository;
         this.transactionService = transactionService;
+        this.customerAdminService = customerAdminService;
     }
 
     private String getCustomerId(Jwt jwt) {
@@ -62,14 +69,29 @@ public class CoreBankingController {
     @GetMapping("/transactions")
     public ResponseEntity<List<Transaction>> getTransactions(@AuthenticationPrincipal Jwt jwt) {
         String customerId = getCustomerId(jwt);
-        List<Account> accounts = accountRepository.findByCustomerId(customerId);
-        List<String> accountNumbers = accounts.stream().map(Account::getAccountNumber).collect(Collectors.toList());
-        // Find transactions where sender or receiver is one of the user's accounts
-        List<Transaction> transactions = transactionRepository.findAll().stream()
-                .filter(t -> (t.getSenderAccount() != null && accountNumbers.contains(t.getSenderAccount().getAccountNumber())) || 
-                             (t.getReceiverAccount() != null && accountNumbers.contains(t.getReceiverAccount().getAccountNumber())))
-                .collect(Collectors.toList());
-        return ResponseEntity.ok(transactions);
+        return ResponseEntity.ok(transactionRepository.findForCustomerWithAccounts(customerId));
+    }
+
+    @DeleteMapping("/beneficiaries/{id}")
+    public ResponseEntity<Void> deleteBeneficiary(@AuthenticationPrincipal Jwt jwt, @PathVariable java.util.UUID id) {
+        Beneficiary beneficiary = beneficiaryRepository.findById(id)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Beneficiary not found"));
+        if (!beneficiary.getCustomerId().equals(getCustomerId(jwt))) {
+            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "You cannot delete this beneficiary");
+        }
+        beneficiaryRepository.delete(beneficiary);
+        return ResponseEntity.noContent().build();
+    }
+
+    @GetMapping("/profile")
+    public ResponseEntity<Customer> getProfile(@AuthenticationPrincipal Jwt jwt) {
+        return ResponseEntity.ok(customerAdminService.getCustomerProfile(getCustomerId(jwt)));
+    }
+
+    @PutMapping("/profile")
+    public ResponseEntity<Customer> updateProfile(@AuthenticationPrincipal Jwt jwt,
+                                                   @Valid @RequestBody CustomerProfileUpdateRequest request) {
+        return ResponseEntity.ok(customerAdminService.updateCustomerProfile(getCustomerId(jwt), request));
     }
 
     @PostMapping("/transfer")

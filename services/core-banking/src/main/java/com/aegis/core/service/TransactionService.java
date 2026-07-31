@@ -3,8 +3,10 @@ package com.aegis.core.service;
 import com.aegis.core.dto.TransferRequest;
 import com.aegis.core.entity.*;
 import com.aegis.core.repository.*;
+import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.web.server.ResponseStatusException;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
@@ -17,15 +19,18 @@ public class TransactionService {
     private final TransactionRepository transactionRepository;
     private final LedgerEntryRepository ledgerEntryRepository;
     private final OutboxEventRepository outboxEventRepository;
+    private final FraudScreeningService fraudScreeningService;
 
     public TransactionService(AccountRepository accountRepository, 
                               TransactionRepository transactionRepository,
                               LedgerEntryRepository ledgerEntryRepository,
-                              OutboxEventRepository outboxEventRepository) {
+                              OutboxEventRepository outboxEventRepository,
+                              FraudScreeningService fraudScreeningService) {
         this.accountRepository = accountRepository;
         this.transactionRepository = transactionRepository;
         this.ledgerEntryRepository = ledgerEntryRepository;
         this.outboxEventRepository = outboxEventRepository;
+        this.fraudScreeningService = fraudScreeningService;
     }
 
     @Transactional
@@ -47,6 +52,8 @@ public class TransactionService {
             sender = accountRepository.findByAccountNumberForUpdate(acc1).orElseThrow();
         }
 
+        ensureAccountsActive(sender, receiver);
+
         if (sender.getBalance().compareTo(request.getAmount()) < 0) {
             throw new RuntimeException("Insufficient funds");
         }
@@ -58,12 +65,12 @@ public class TransactionService {
         tx.setAmount(request.getAmount());
         tx.setIdempotencyKey(request.getIdempotencyKey());
         
-        int riskScore = calculateMockRisk(request);
-        tx.setRiskScore(riskScore);
+        FraudScreeningService.FraudAssessment assessment = fraudScreeningService.evaluate(tx.getReference(), sender, receiver, request.getAmount());
+        tx.setRiskScore(assessment.riskScore());
         
-        if (riskScore >= 70) {
+        if ("HELD".equals(assessment.decision())) {
             tx.setStatus("HELD");
-            tx.setFraudReasons("High risk score detected");
+            tx.setFraudReasons(assessment.reasons());
         } else {
             tx.setStatus("COMPLETED");
             tx.setCompletedAt(LocalDateTime.now());
@@ -117,11 +124,11 @@ public class TransactionService {
 
     @Transactional
     public Transaction approveTransaction(UUID transactionId) {
-        Transaction tx = transactionRepository.findById(transactionId)
-                .orElseThrow(() -> new RuntimeException("Transaction not found"));
+        Transaction tx = transactionRepository.findByIdWithAccounts(transactionId)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Transaction not found"));
         
         if (!"HELD".equals(tx.getStatus())) {
-            throw new RuntimeException("Transaction is not in HELD status");
+            throw new ResponseStatusException(HttpStatus.CONFLICT, "Transaction is not in HELD status");
         }
 
         // Lock accounts in consistent order to prevent deadlock
@@ -137,8 +144,10 @@ public class TransactionService {
             sender = accountRepository.findByAccountNumberForUpdate(acc1).orElseThrow();
         }
 
+        ensureAccountsActive(sender, receiver);
+
         if (sender.getBalance().compareTo(tx.getAmount()) < 0) {
-            throw new RuntimeException("Insufficient funds for approval");
+            throw new ResponseStatusException(HttpStatus.UNPROCESSABLE_ENTITY, "Insufficient funds for approval");
         }
 
         tx.setStatus("APPROVED");
@@ -190,11 +199,11 @@ public class TransactionService {
 
     @Transactional
     public Transaction rejectTransaction(UUID transactionId) {
-        Transaction tx = transactionRepository.findById(transactionId)
-                .orElseThrow(() -> new RuntimeException("Transaction not found"));
+        Transaction tx = transactionRepository.findByIdWithAccounts(transactionId)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Transaction not found"));
         
         if (!"HELD".equals(tx.getStatus())) {
-            throw new RuntimeException("Transaction is not in HELD status");
+            throw new ResponseStatusException(HttpStatus.CONFLICT, "Transaction is not in HELD status");
         }
 
         tx.setStatus("REJECTED");
@@ -213,7 +222,9 @@ public class TransactionService {
         return tx;
     }
 
-    private int calculateMockRisk(TransferRequest request) {
-        return request.getAmount().compareTo(new BigDecimal("10000")) > 0 ? 85 : 10;
+    private void ensureAccountsActive(Account sender, Account receiver) {
+        if (!"ACTIVE".equals(sender.getStatus()) || !"ACTIVE".equals(receiver.getStatus())) {
+            throw new ResponseStatusException(HttpStatus.CONFLICT, "Transfers are unavailable while an account is frozen");
+        }
     }
 }
