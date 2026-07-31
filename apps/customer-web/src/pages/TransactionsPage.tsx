@@ -129,7 +129,7 @@ export default function TransactionsPage() {
           </thead>
           <tbody>
             {filtered.map((tx, i) => {
-              const isSent = myAccounts.has(tx.senderAccountNumber);
+              const isSent = myAccounts.has(tx.senderAccountNumber ?? '');
               return (
                 <tr
                   key={tx.id}

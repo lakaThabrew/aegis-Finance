@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
-import { Wallet, Search, Sparkles, Download, Loader2 } from 'lucide-react';
-import type { Account } from '../types';
+import { Wallet, Search, Download, Loader2 } from 'lucide-react';
+import type { Account, Transaction } from '../types';
 import api from '../api/client';
 
 function formatCurrency(amount: number | string, currency = 'USD') {
@@ -16,6 +16,7 @@ export default function AccountsOverviewPage() {
   const [accounts, setAccounts] = useState<Account[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
+  const [downloadingAccount, setDownloadingAccount] = useState<string | null>(null);
 
   useEffect(() => {
     async function loadAccounts() {
@@ -37,8 +38,32 @@ export default function AccountsOverviewPage() {
     acc.status.toLowerCase().includes(search.toLowerCase())
   );
 
-  const downloadStatement = (accountNumber: string) => {
-    alert(`Downloading statement for ${accountNumber}...`);
+  const downloadStatement = async (accountNumber: string) => {
+    setDownloadingAccount(accountNumber);
+    try {
+      const response = await api.get<Transaction[]>('/api/v1/core/transactions');
+      const rows = response.data
+        .filter((transaction) => transaction.senderAccount?.accountNumber === accountNumber || transaction.receiverAccount?.accountNumber === accountNumber)
+        .map((transaction) => {
+          const direction = transaction.senderAccount?.accountNumber === accountNumber ? 'DEBIT' : 'CREDIT';
+          const counterparty = direction === 'DEBIT' ? transaction.receiverAccount?.accountNumber : transaction.senderAccount?.accountNumber;
+          return [transaction.createdAt, transaction.reference, direction, counterparty ?? '', transaction.amount, transaction.currency, transaction.status];
+        });
+      const csv = [['Date', 'Reference', 'Direction', 'Counterparty', 'Amount', 'Currency', 'Status'], ...rows]
+        .map((row) => row.map((value) => `"${String(value).replaceAll('"', '""')}"`).join(','))
+        .join('\n');
+      const url = URL.createObjectURL(new Blob([csv], { type: 'text/csv;charset=utf-8' }));
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = `${accountNumber}-statement.csv`;
+      link.click();
+      URL.revokeObjectURL(url);
+    } catch (error) {
+      console.error('Failed to download statement', error);
+      alert('Unable to download the statement. Please try again.');
+    } finally {
+      setDownloadingAccount(null);
+    }
   };
 
   if (loading) {
@@ -89,10 +114,11 @@ export default function AccountsOverviewPage() {
                   {acc.status}
                 </span>
                 <button
-                  onClick={() => downloadStatement(acc.accountNumber)}
-                  className="flex items-center gap-1.5 px-3 py-1 rounded-lg bg-white/5 text-gray-300 text-xs hover:bg-white/10 hover:text-white transition border border-white/10"
+                  onClick={() => void downloadStatement(acc.accountNumber)}
+                  disabled={downloadingAccount === acc.accountNumber}
+                  className="flex items-center gap-1.5 px-3 py-1 rounded-lg bg-white/5 text-gray-300 text-xs hover:bg-white/10 hover:text-white transition border border-white/10 disabled:opacity-50"
                 >
-                  <Download className="w-3 h-3" /> Statement
+                  {downloadingAccount === acc.accountNumber ? <Loader2 className="w-3 h-3 animate-spin" /> : <Download className="w-3 h-3" />} Statement
                 </button>
               </div>
             </div>

@@ -1,13 +1,12 @@
 import { Shield, LayoutDashboard, ArrowRightLeft, Users, ShieldAlert, LogOut, Bell, ChevronRight, Wallet, Settings } from 'lucide-react';
 import { Link, useLocation } from 'react-router-dom';
-import { useAuth } from '../context/AuthContext';
+import { useAuth } from '../hooks/useAuth';
 
 const nav = [
-  { label: 'Dashboard', icon: LayoutDashboard, href: '/' },
+  { label: 'Dashboard', icon: LayoutDashboard, href: '/dashboard' },
   { label: 'Accounts', icon: Wallet, href: '/accounts' },
   { label: 'Transactions', icon: ArrowRightLeft, href: '/transactions' },
   { label: 'Transfer', icon: ArrowRightLeft, href: '/transfer' },
-  { label: 'Notifications', icon: Bell, href: '/notifications' },
   { label: 'Beneficiaries', icon: Users, href: '/beneficiaries' },
   { label: 'Security Center', icon: ShieldAlert, href: '/security' },
   { label: 'Settings', icon: Settings, href: '/settings' },
@@ -59,10 +58,10 @@ export default function Sidebar() {
       {/* Notifications + Logout */}
       <div className="space-y-2 border-t border-white/8 p-5">
         <div className="mb-3 rounded-xl border border-emerald-400/10 bg-emerald-400/[.06] p-3"><p className="text-[10px] font-bold tracking-[.14em] text-emerald-300">SYSTEM STATUS</p><p className="mt-1 flex items-center gap-1.5 text-xs text-slate-300"><span className="h-1.5 w-1.5 rounded-full bg-emerald-400" />All services secure</p></div>
-        <button className="flex items-center gap-3 px-4 py-2.5 w-full rounded-xl text-sm text-gray-400 hover:bg-white/5 hover:text-white transition">
+        <Link to="/notifications" className="flex items-center gap-3 px-4 py-2.5 w-full rounded-xl text-sm text-gray-400 hover:bg-white/5 hover:text-white transition">
           <Bell className="w-4 h-4" />
           Notifications
-        </button>
+        </Link>
         <button
           id="logout-btn"
           onClick={logout}

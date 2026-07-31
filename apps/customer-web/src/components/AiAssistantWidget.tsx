@@ -1,7 +1,8 @@
 import { useState, useEffect, useRef } from 'react';
-import { MessageSquare, X, Send, Sparkles, Loader2, Bot } from 'lucide-react';
+import { X, Send, Sparkles, Loader2, Bot } from 'lucide-react';
 import { GoogleGenerativeAI } from '@google/generative-ai';
 import api from '../api/client';
+import ReactMarkdown from 'react-markdown';
 
 type Message = {
   id: string;
@@ -41,7 +42,7 @@ export default function AiAssistantWidget() {
         setFinancialContext('No context available');
       }
     }
-    
+
     if (isOpen && !financialContext) {
       fetchContext();
     }
@@ -59,7 +60,7 @@ export default function AiAssistantWidget() {
 
   const handleSend = async (text: string = input) => {
     if (!text.trim()) return;
-    
+
     const userMessage: Message = { id: Date.now().toString(), sender: 'user', text: text.trim() };
     setMessages((prev) => [...prev, userMessage]);
     setInput('');
@@ -67,14 +68,14 @@ export default function AiAssistantWidget() {
 
     try {
       const apiKey = import.meta.env.VITE_GEMINI_API_KEY;
-      if (!apiKey || apiKey === 'YOUR_GEMINI_API_KEY_HERE') {
+      if (!apiKey) {
         throw new Error('API key not found');
       }
 
       const genAI = new GoogleGenerativeAI(apiKey);
       const modelsToTry = ['gemini-3.6-flash', 'gemini-3.1-pro', 'gemini-2.5-pro', 'gemini-1.5-pro'];
       const prompt = `You are Aegis AI, a helpful AI financial assistant for Aegis Finance. You are talking to the user. Here is the user's financial context in JSON format: ${financialContext}. The user asks: ${userMessage.text}. Provide a short, friendly, and helpful response. Do not expose the raw JSON to the user. Keep it brief and conversational. If the context does not have the answer, just say so.`;
-      
+
       let responseText = null;
 
       for (const modelName of modelsToTry) {
@@ -93,13 +94,13 @@ export default function AiAssistantWidget() {
       if (!responseText) {
         throw new Error('All Gemini models failed to generate a response');
       }
-      
+
       setMessages((prev) => [...prev, { id: Date.now().toString(), sender: 'bot', text: responseText }]);
-    } catch (error) {
-      setMessages((prev) => [...prev, { 
-        id: Date.now().toString(), 
-        sender: 'bot', 
-        text: 'I encountered an error. Please make sure VITE_GEMINI_API_KEY is set in your .env file.' 
+    } catch {
+      setMessages((prev) => [...prev, {
+        id: Date.now().toString(),
+        sender: 'bot',
+        text: 'I encountered an error. Please make sure VITE_GEMINI_API_KEY is set in your .env file.'
       }]);
     } finally {
       setIsTyping(false);
@@ -128,7 +129,7 @@ export default function AiAssistantWidget() {
       {/* Chat Window */}
       {isOpen && (
         <div className="fixed bottom-6 right-6 z-50 flex h-[600px] max-h-[80vh] w-[400px] max-w-[calc(100vw-3rem)] flex-col overflow-hidden rounded-2xl border border-white/10 bg-[#0d1530]/95 text-white shadow-2xl backdrop-blur-xl transition-all">
-          
+
           {/* Header */}
           <div className="flex items-center justify-between border-b border-white/10 bg-white/5 p-4">
             <div className="flex items-center gap-3">
@@ -169,17 +170,22 @@ export default function AiAssistantWidget() {
                 className={`flex ${msg.sender === 'user' ? 'justify-end' : 'justify-start'}`}
               >
                 <div
-                  className={`max-w-[80%] rounded-2xl p-3 text-sm ${
-                    msg.sender === 'user'
+                  className={`max-w-[80%] rounded-2xl p-3 text-sm ${msg.sender === 'user'
                       ? 'bg-gradient-to-br from-blue-500 to-violet-600 text-white rounded-tr-sm'
                       : 'bg-white/5 border border-white/10 text-slate-200 rounded-tl-sm'
-                  } whitespace-pre-wrap`}
+                    } whitespace-pre-wrap`}
                 >
-                  {msg.text}
+                  {msg.sender === 'bot' ? (
+                    <div className="space-y-2 [&>ul]:list-disc [&>ul]:ml-4 [&>ol]:list-decimal [&>ol]:ml-4 [&_strong]:font-bold [&_a]:text-blue-400 [&_a]:underline">
+                      <ReactMarkdown>{msg.text}</ReactMarkdown>
+                    </div>
+                  ) : (
+                    msg.text
+                  )}
                 </div>
               </div>
             ))}
-            
+
             {isTyping && (
               <div className="flex justify-start">
                 <div className="max-w-[80%] rounded-2xl bg-white/5 border border-white/10 p-3 rounded-tl-sm">

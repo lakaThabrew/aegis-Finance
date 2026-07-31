@@ -14,6 +14,7 @@ export default function BeneficiariesPage() {
   const [newName, setNewName] = useState('');
   const [newAccNum, setNewAccNum] = useState('');
   const [loading, setLoading] = useState(false);
+  const [deletingId, setDeletingId] = useState<string | null>(null);
   const [pageLoading, setPageLoading] = useState(true);
 
   useEffect(() => {
@@ -55,6 +56,20 @@ export default function BeneficiariesPage() {
   const handleTransfer = async (e: React.FormEvent) => {
     e.preventDefault();
     setStep('confirm');
+  };
+
+  const handleDelete = async (beneficiary: Beneficiary) => {
+    if (!window.confirm(`Remove ${beneficiary.beneficiaryName} from your beneficiaries?`)) return;
+    setDeletingId(beneficiary.id);
+    try {
+      await api.delete(`/api/v1/core/beneficiaries/${beneficiary.id}`);
+      setBeneficiaries((current) => current.filter((item) => item.id !== beneficiary.id));
+    } catch (error) {
+      console.error('Failed to delete beneficiary', error);
+      alert('Unable to remove beneficiary. Please try again.');
+    } finally {
+      setDeletingId(null);
+    }
   };
 
   const confirmTransfer = async () => {
@@ -104,8 +119,9 @@ export default function BeneficiariesPage() {
               </div>
               <button
                 id={`delete-ben-${ben.id}`}
-                onClick={() => setBeneficiaries(prev => prev.filter(b => b.id !== ben.id))}
-                className="text-gray-600 hover:text-red-400 transition"
+                onClick={() => void handleDelete(ben)}
+                disabled={deletingId === ben.id}
+                className="text-gray-600 hover:text-red-400 transition disabled:opacity-50"
               >
                 <Trash2 className="w-4 h-4" />
               </button>
