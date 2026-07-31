@@ -1,255 +1,96 @@
-# 🛡️ Aegis Finance — Secure Digital Banking Platform
+# Aegis Finance 🛡️
 
-> A full-stack, microservice-based digital banking system built for the **Duothon 6.0** competition.  
-> Aegis provides P2P transfers with double-entry ledger accounting, real-time fraud detection, and a dedicated admin portal for fraud analysts.
+Aegis Finance is a modern, microservice-based core banking platform and mobile application built for maximum security, AI-driven insights, and seamless user experiences.
 
----
+## Architecture
 
-## 📋 Table of Contents
+The system is split into multiple primary layers:
+1. **Frontend (Mobile & Web)**: 
+    - **Mobile App**: Built with Flutter.
+    - **Web Apps**: `customer-web` and `admin-web` built with modern web technologies.
+    All frontends communicate with backend microservices via REST API using JWT Authentication.
+2. **Backend (Spring Boot Microservices & Python)**: 
+    - `api-gateway`: Spring Cloud Gateway routing requests.
+    - `identity-service`: Keycloak for OIDC/OAuth2 Authentication and JWT generation.
+    - `core-banking`: Handles accounts, transactions, balances, and card controls.
+    - `fraud-ml-engine`: Python-based AI/ML engine for detecting fraudulent transactions.
+    - `fraud-service` / `notification-service`: Supporting services for alerts.
 
-- [Architecture](#-architecture)
-- [Technology Stack](#-technology-stack)
-- [Project Structure](#-project-structure)
-- [Implemented Features](#-implemented-features)
-- [Getting Started](#-getting-started)
-- [Sprint Progress](#-sprint-progress)
-- [Deferred Features](#-deferred-features)
+## Tech Stack
+- **Mobile**: Flutter, Dart, Google Generative AI (`gemini-1.5-pro`)
+- **Web**: React, Node.js
+- **Backend Services**: Java, Spring Boot, Spring Security, Python (for ML)
+- **Database / Cache**: PostgreSQL (with Flyway), Redis
+- **Secrets Management**: HashiCorp Vault
+- **Messaging**: Apache Kafka
+- **Identity Provider**: Keycloak
+- **Observability**: Prometheus, Grafana
 
----
+## Quick Start
+To get started with the development environment, you can use the automated scripts or start services manually.
 
-## 🏗️ Architecture
+### Automated Startup (Windows)
+We provide batch scripts to easily boot up the entire system.
+1. **Boot up Infrastructure**:
+   Navigate to `infrastructure/docker` and start the containers:
+   ```powershell
+   docker compose up -d --build
+   ```
+2. **Inject Vault Secrets**:
+   After the containers start, inject the database password into Vault:
+   ```powershell
+   docker exec -e VAULT_TOKEN=root -e VAULT_ADDR=http://127.0.0.1:8200 aegis-vault vault kv put secret/application db.password=password
+   ```
+3. **Start Backend Services**:
+   Double-click `start-backend.bat` in the root folder. This opens 5 windows and starts all microservices simultaneously.
+4. **Start Web Apps**:
+   Double-click `start-frontend.bat` in the root folder. This starts both the Admin and Customer portals.
 
-Aegis follows a **microservice architecture** organized as a monorepo:
+### Manual Startup
+If you prefer to start services individually:
 
-```
-┌─────────────────────────────────────────────────────────┐
-│                    Client Layer                         │
-│  ┌───────────────────┐    ┌───────────────────────┐     │
-│  │  Customer Portal  │    │  Admin/Fraud Portal   │     │
-│  │  (React + Vite)   │    │  (React + Vite)       │     │
-│  │  Port: 5173       │    │  Port: 5174           │     │
-│  └────────┬──────────┘    └───────────┬───────────┘     │
-└───────────┼───────────────────────────┼─────────────────┘
-            │                           │
-┌───────────┼───────────────────────────┼─────────────────┐
-│  ┌────────▼───────────────────────────▼──────────────┐  │
-│  │           Spring Cloud API Gateway                │  │
-│  │                  Port: 8080                       │  │
-│  └──────────┬────────────────────────┬───────────────┘  │
-│             │    Service Layer       │                   │
-│  ┌──────────▼──────────┐  ┌──────────▼──────────┐       │
-│  │  Core Banking       │  │  Fraud Service      │       │
-│  │  Port: 8081         │  │  Port: 8082         │       │
-│  │  • Accounts         │  │  • Risk Scoring     │       │
-│  │  • Transactions     │  │  • Hold Boundary    │       │
-│  │  • Double-Entry     │  │  • Fraud Results    │       │
-│  │  • Outbox Events    │  │                     │       │
-│  └──────────┬──────────┘  └─────────────────────┘       │
-└─────────────┼───────────────────────────────────────────┘
-              │
-┌─────────────┼───────────────────────────────────────────┐
-│             │    Infrastructure Layer                    │
-│  ┌──────────▼──┐  ┌────────┐  ┌───────┐  ┌──────────┐  │
-│  │ PostgreSQL  │  │ Kafka  │  │ Redis │  │ Keycloak │  │
-│  │   (Neon)    │  │        │  │       │  │  (IAM)   │  │
-│  └─────────────┘  └────────┘  └───────┘  └──────────┘  │
-└─────────────────────────────────────────────────────────┘
-```
+1. **Boot up Backend Infrastructure**:
+   Navigate to `infrastructure/docker` and start the containers (Database, Redis, Keycloak, Vault, Kafka):
+   ```powershell
+   docker compose up -d
+   ```
+2. **Inject Vault Secrets**:
+   After the containers start, inject the database password into Vault:
+   ```powershell
+   docker exec -e VAULT_TOKEN=root -e VAULT_ADDR=http://127.0.0.1:8200 aegis-vault vault kv put secret/application db.password=password
+   ```
+3. **Run Microservices** (Locally):
+   Navigate to each service directory (`services/identity-service`, `services/core-banking`, `services/api-gateway`, etc.) and run:
+   ```powershell
+   ./mvnw spring-boot:run
+   ```
+4. **Run Fraud ML Engine**:
+   Navigate to `services/fraud-ml-engine`, install dependencies and run the engine:
+   ```powershell
+   pip install -r requirements.txt
+   python app.py
+   ```
+5. **Run Web Apps**:
+   Navigate to `apps/customer-web` and `apps/admin-web`, then run:
+   ```powershell
+   npm install
+   npm run dev
+   ```
+6. **Run Flutter App**:
+   Ensure you have configured `apps/aegis_mobile/.env` with your API URLs and Gemini API key.
+   ```powershell
+   cd apps/aegis_mobile
+   flutter pub get
+   flutter run
+   ```
 
----
+## Demo Login Credentials
 
-## 🧰 Technology Stack
+Use the following Keycloak account for the customer portal at `http://localhost:5173`:
 
-| Layer | Technology |
-|---|---|
-| **Backend** | Java 17, Spring Boot 3, Spring Cloud Gateway |
-| **Frontend** | React 19, TypeScript, Vite 8, Tailwind CSS |
-| **Database** | PostgreSQL (Neon), Flyway Migrations |
-| **Messaging** | Apache Kafka (Transactional Outbox Pattern) |
-| **Caching** | Redis |
-| **Auth / IAM** | Keycloak (OAuth2 + TOTP MFA) |
-| **Icons** | Lucide React |
-| **CI/CD** | GitHub Actions |
-| **Containerization** | Docker Compose |
+- **Email:** `you@aegis.finance`
+- **Password:** `password123`
 
----
-
-## 📁 Project Structure
-
-```
-aegis/
-├── apps/
-│   ├── customer-web/          # Customer-facing React portal
-│   │   ├── src/
-│   │   │   ├── components/    # Sidebar, AppLayout
-│   │   │   ├── pages/         # Dashboard, Transactions, Beneficiaries, Security
-│   │   │   ├── context/       # AuthContext (JWT management)
-│   │   │   ├── api/           # Axios client with token interceptor
-│   │   │   └── types/         # Shared TypeScript interfaces
-│   │   └── ...
-│   └── admin-web/             # Admin/Fraud Analyst React portal
-│       ├── src/
-│       │   ├── components/    # AdminSidebar, AdminLayout
-│       │   ├── pages/         # Overview, HeldTransfers, AuditLog
-│       │   └── types/         # Admin-specific TypeScript interfaces
-│       └── ...
-├── services/
-│   ├── api-gateway/           # Spring Cloud API Gateway
-│   ├── core-banking/          # Core Banking Microservice
-│   │   ├── entity/            # Account, Transaction, LedgerEntry, OutboxEvent
-│   │   ├── repository/        # JPA Repositories (with pessimistic locking)
-│   │   ├── service/           # TransactionService (double-entry ledger)
-│   │   ├── dto/               # TransferRequest
-│   │   └── db/migration/      # V1__init_schema.sql
-│   └── fraud-service/         # Fraud Detection Microservice
-│       ├── entity/            # FraudResult
-│       ├── repository/        # FraudResultRepository
-│       ├── service/           # FraudService (risk scoring engine)
-│       ├── controller/        # REST API (/api/v1/fraud/evaluate)
-│       ├── dto/               # FraudEvaluationRequest/Response
-│       └── db/migration/      # V1__init_fraud_schema.sql
-├── infrastructure/
-│   └── docker/
-│       └── docker-compose.yml # Kafka, Redis, Keycloak, PostgreSQL
-├── .github/
-│   └── workflows/
-│       └── ci.yml             # GitHub Actions CI pipeline
-└── docs/                      # Documentation directory
-```
-
----
-
-## ✅ Implemented Features
-
-### 🏦 Core Banking Service
-- **Double-Entry Ledger** — Every transfer creates a matching DEBIT and CREDIT entry with before/after balances
-- **Pessimistic Locking** — Ordered account locking prevents deadlocks during concurrent transfers
-- **Idempotency** — Duplicate transfer prevention via unique idempotency keys
-- **Transactional Outbox** — Events (`TransactionPosted`, `TransferHeld`) saved atomically with ledger changes
-- **Flyway Migrations** — Versioned schema for `accounts`, `transactions`, `ledger_entries`, `beneficiaries`, `outbox_events`
-
-### 🛡️ Fraud Detection Service
-- **Rules-Based Risk Scoring** — Evaluates transaction amount against configurable thresholds
-- **Explicit Hold Boundary** — Transactions with `riskScore >= 70` are marked `HELD`; ledger balances remain unchanged until admin approval
-- **Fraud Results Persistence** — All evaluations are stored for audit purposes
-- **REST API** — `POST /api/v1/fraud/evaluate` for synchronous fraud checks
-
-### 👤 Customer Portal (`customer-web`)
-- **Login Page** — Glassmorphism design, Keycloak-ready JWT auth, show/hide password toggle
-- **Dashboard** — Total portfolio balance hero card, individual account cards with copy-to-clipboard, recent activity feed
-- **Transactions** — Full ledger table with search, status filters (ALL / COMPLETED / HELD / REJECTED), downloadable CSV statement, transaction receipt modal
-- **Beneficiaries** — Grid of beneficiary cards, add/delete flows, multi-step transfer workflow with preview and confirmation modal
-- **Security Center** — Account freeze/unfreeze toggle, trusted device management, colour-coded audit trail
-
-### 🔴 Admin / Fraud Analyst Portal (`admin-web`)
-- **Overview Dashboard** — Stats grid (total transactions, held count, volume, flagged rate), risk score distribution bar chart, recent alerts feed
-- **Held Transfers** — Pending queue with Approve/Reject buttons, detailed inspection modal showing fraud reasons and risk score, resolved history table, ledger-unchanged reminder
-- **Audit Log** — Searchable and filterable chronological event log with severity badges (info / warning / critical) and actor tracking
-
-### 🔧 Infrastructure
-- **Docker Compose** — Full local stack: PostgreSQL, Kafka (KRaft), Redis, Keycloak
-- **GitHub Actions CI** — Automated build pipeline for all services and apps
-- **Spring Cloud API Gateway** — Central routing for all backend microservices
-
----
-
-## 🚀 Getting Started
-
-### Prerequisites
-
-- Java 17+
-- Node.js 18+
-- Docker & Docker Compose
-
-### 1. Start Infrastructure (Databases, Kafka, IAM)
-
-Aegis requires PostgreSQL, Kafka, Redis, and Keycloak to run. These are all containerized for easy setup.
-
-```bash
-cd infrastructure/docker
-docker compose up -d
-```
-
-Once the containers are running:
-- **Kafka** will automatically create the `transaction-events` topic on the first publish.
-- **PostgreSQL** will run on port `5432`. Ensure you create the logical databases if they aren't created by default:
-  - `aegis_core` (for Core Banking)
-  - `aegis_fraud` (for Fraud Service)
-
-*Note: Flyway migrations are integrated into the Spring Boot apps. When you run the microservices, Flyway will automatically construct the tables and insert the **Demo Data** (via `V2__seed_demo_data.sql`).*
-
-### 2. Run Backend Services
-
-```bash
-# Core Banking (port 8081)
-cd services/core-banking
-./mvnw spring-boot:run
-
-# Fraud Service (port 8082)
-cd services/fraud-service
-./mvnw spring-boot:run
-
-# Notification Service (port 8083)
-cd services/notification-service
-./mvnw spring-boot:run
-
-# API Gateway (port 8080)
-cd services/api-gateway
-./mvnw spring-boot:run
-```
-
-### 3. Run Frontend Apps
-
-```bash
-# Customer Portal (port 5173)
-cd apps/customer-web
-npm install && npm run dev
-
-# Admin Portal (port 5174)
-cd apps/admin-web
-npm install && npm run dev
-```
-
----
-
-## 📊 Sprint Progress
-
-| Sprint | Focus | Status |
-|---|---|---|
-| **Sprint 1** | Foundation — Git, Docker, CI, Keycloak, API Gateway | ✅ Complete |
-| **Sprint 2** | Banking Core — Double-Entry Ledger, Customer Dashboard, Transactions UI | ✅ Complete |
-| **Sprint 3** | Security & Fraud — Fraud Service, Security Center, Admin Portal | ✅ Complete |
-| **Sprint 4** | Enterprise Evidence — Outbox polling, Notifications, Swagger, Demo Data | ✅ Complete |
-| **Sprint 5** | QA & Testing — Unit tests, Integration tests, E2E, Security testing | ⬜ Pending |
-
-### Remaining Work (Sprint 5)
-- [ ] Unit, Integration, and E2E tests
-- [ ] Security testing
-- [ ] Demo rehearsal workflow
-
----
-
-## 🔮 Deferred Features (Architecture-Only)
-
-The following were designed in Phase 1 but are **explicitly deferred** from this implementation to avoid scope creep:
-
-| Feature | Reason |
-|---|---|
-| Flutter Mobile App | Out of scope for web-focused Phase 2 |
-| Full e-KYC | Requires third-party integrations |
-| QR Payments & Bill Pay | Planned for future phases |
-| Cards & Loans Modules | Requires additional microservices |
-| Kubernetes / Istio | Docker Compose sufficient for demo |
-| HashiCorp Vault | Keycloak handles secrets for now |
-
----
-
-## 👥 Team
-
-Built for **Duothon 6.0** competition.
-
----
-
-## 📄 License
-
-This project is developed for the Duothon 6.0 competition and is not licensed for commercial use.
+## Documentation
+- [User Guide](docs/user_guide.md) - Instructions for end users.
+- [Testing Guide](docs/testing.md) - Instructions for developers to test APIs and Apps.

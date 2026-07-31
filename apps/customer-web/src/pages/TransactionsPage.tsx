@@ -1,16 +1,7 @@
-import { useState } from 'react';
-import { Search, Download, ArrowUpRight, ArrowDownLeft, X } from 'lucide-react';
-import type { Transaction } from '../types';
-
-const MOCK_TRANSACTIONS: Transaction[] = [
-  { id: 't1', reference: 'TXN-8F3A1B', senderAccountNumber: 'AGS-0001-2024', receiverAccountNumber: 'AGS-0099-2024', amount: 1500, currency: 'USD', status: 'COMPLETED', createdAt: new Date(Date.now() - 86400000).toISOString() },
-  { id: 't2', reference: 'TXN-2C9E7D', senderAccountNumber: 'AGS-0099-2024', receiverAccountNumber: 'AGS-0001-2024', amount: 3000, currency: 'USD', status: 'COMPLETED', createdAt: new Date(Date.now() - 172800000).toISOString() },
-  { id: 't3', reference: 'TXN-5A4F2E', senderAccountNumber: 'AGS-0001-2024', receiverAccountNumber: 'AGS-0077-2024', amount: 25000, currency: 'USD', status: 'HELD', riskScore: 85, createdAt: new Date(Date.now() - 3600000).toISOString() },
-  { id: 't4', reference: 'TXN-9B1C3F', senderAccountNumber: 'AGS-0001-2024', receiverAccountNumber: 'AGS-0055-2024', amount: 750, currency: 'USD', status: 'COMPLETED', createdAt: new Date(Date.now() - 259200000).toISOString() },
-  { id: 't5', reference: 'TXN-1D4E8A', senderAccountNumber: 'AGS-0001-2024', receiverAccountNumber: 'AGS-0033-2024', amount: 500, currency: 'USD', status: 'REJECTED', createdAt: new Date(Date.now() - 345600000).toISOString() },
-];
-
-const MY_ACCOUNT = 'AGS-0001-2024';
+import { useState, useEffect } from 'react';
+import { Search, Download, ArrowUpRight, ArrowDownLeft, X, Loader2 } from 'lucide-react';
+import type { Transaction, Account } from '../types';
+import api from '../api/client';
 
 function formatCurrency(amount: number) {
   return new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(amount);
@@ -24,14 +15,44 @@ const STATUS_STYLE: Record<string, string> = {
   COMPLETED: 'bg-emerald-500/15 text-emerald-400 border-emerald-500/30',
   HELD: 'bg-amber-500/15 text-amber-400 border-amber-500/30',
   REJECTED: 'bg-red-500/15 text-red-400 border-red-500/30',
+  APPROVED: 'bg-emerald-500/15 text-emerald-400 border-emerald-500/30',
 };
 
 export default function TransactionsPage() {
   const [search, setSearch] = useState('');
   const [filter, setFilter] = useState<string>('ALL');
   const [selected, setSelected] = useState<Transaction | null>(null);
+  
+  const [transactions, setTransactions] = useState<Transaction[]>([]);
+  const [myAccounts, setMyAccounts] = useState<Set<string>>(new Set());
+  const [loading, setLoading] = useState(true);
 
-  const filtered = MOCK_TRANSACTIONS.filter(tx => {
+  useEffect(() => {
+    async function loadData() {
+      try {
+        const [accRes, txRes] = await Promise.all([
+          api.get('/api/v1/core/accounts'),
+          api.get('/api/v1/core/transactions')
+        ]);
+        const accs = new Set<string>(accRes.data.map((a: Account) => a.accountNumber));
+        setMyAccounts(accs);
+        
+        const mapped = txRes.data.map((tx: any) => ({
+          ...tx,
+          senderAccountNumber: tx.senderAccount?.accountNumber || tx.senderAccountNumber,
+          receiverAccountNumber: tx.receiverAccount?.accountNumber || tx.receiverAccountNumber
+        }));
+        setTransactions(mapped);
+      } catch (e) {
+        console.error('Failed to load transactions', e);
+      } finally {
+        setLoading(false);
+      }
+    }
+    loadData();
+  }, []);
+
+  const filtered = transactions.filter(tx => {
     const matchSearch = tx.reference.toLowerCase().includes(search.toLowerCase());
     const matchFilter = filter === 'ALL' || tx.status === filter;
     return matchSearch && matchFilter;
@@ -45,6 +66,10 @@ export default function TransactionsPage() {
     const a = document.createElement('a'); a.href = url; a.download = 'aegis-statement.csv'; a.click();
     URL.revokeObjectURL(url);
   };
+
+  if (loading) {
+    return <div className="flex items-center justify-center h-64 text-white"><Loader2 className="w-8 h-8 animate-spin" /></div>;
+  }
 
   return (
     <div className="page-enter space-y-6">
@@ -76,7 +101,7 @@ export default function TransactionsPage() {
           />
         </div>
         <div className="flex gap-2">
-          {['ALL', 'COMPLETED', 'HELD', 'REJECTED'].map(f => (
+          {['ALL', 'COMPLETED', 'HELD', 'REJECTED', 'APPROVED'].map(f => (
             <button
               key={f}
               id={`filter-${f.toLowerCase()}`}
@@ -104,7 +129,7 @@ export default function TransactionsPage() {
           </thead>
           <tbody>
             {filtered.map((tx, i) => {
-              const isSent = tx.senderAccountNumber === MY_ACCOUNT;
+              const isSent = myAccounts.has(tx.senderAccountNumber ?? '');
               return (
                 <tr
                   key={tx.id}
@@ -126,7 +151,7 @@ export default function TransactionsPage() {
                     {isSent ? '-' : '+'}{formatCurrency(Number(tx.amount))}
                   </td>
                   <td className="px-6 py-4">
-                    <span className={`px-2 py-0.5 rounded-full text-xs font-medium border ${STATUS_STYLE[tx.status]}`}>{tx.status}</span>
+                    <span className={`px-2 py-0.5 rounded-full text-xs font-medium border ${STATUS_STYLE[tx.status] || 'bg-gray-500/15 text-gray-400 border-gray-500/30'}`}>{tx.status}</span>
                   </td>
                   <td className="px-6 py-4 text-gray-400">{formatDate(tx.createdAt)}</td>
                 </tr>

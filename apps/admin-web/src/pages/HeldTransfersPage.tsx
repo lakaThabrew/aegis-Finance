@@ -1,24 +1,8 @@
-import { useState } from 'react';
-import { AlertTriangle, CheckCircle2, XCircle, X, Eye } from 'lucide-react';
+import { useState, useEffect } from 'react';
+import axios from 'axios';
+import { AlertTriangle, CheckCircle2, XCircle, X, Eye, Loader2 } from 'lucide-react';
 import type { HeldTransfer } from '../types';
-
-const MOCK_HELD: HeldTransfer[] = [
-  {
-    id: 'h1', reference: 'TXN-5A4F2E', senderAccountNumber: 'AGS-0001-2024', receiverAccountNumber: 'AGS-0077-2024',
-    amount: 25000, currency: 'USD', riskScore: 85, fraudReasons: 'Large transaction amount',
-    status: 'HELD', createdAt: new Date(Date.now() - 3600000).toISOString(),
-  },
-  {
-    id: 'h2', reference: 'TXN-7C2D9A', senderAccountNumber: 'AGS-0012-2024', receiverAccountNumber: 'AGS-0088-2024',
-    amount: 15000, currency: 'USD', riskScore: 75, fraudReasons: 'Large transaction amount',
-    status: 'HELD', createdAt: new Date(Date.now() - 7200000).toISOString(),
-  },
-  {
-    id: 'h3', reference: 'TXN-4E8B1C', senderAccountNumber: 'AGS-0005-2024', receiverAccountNumber: 'AGS-0033-2024',
-    amount: 50000, currency: 'USD', riskScore: 95, fraudReasons: 'Large transaction amount, Exceptionally large transaction amount',
-    status: 'HELD', createdAt: new Date(Date.now() - 10800000).toISOString(),
-  },
-];
+import api from '../api/client';
 
 function formatCurrency(amount: number) {
   return new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(amount);
@@ -38,21 +22,61 @@ function RiskBadge({ score }: { score: number }) {
 }
 
 export default function HeldTransfersPage() {
-  const [transfers, setTransfers] = useState<HeldTransfer[]>(MOCK_HELD);
+  const [transfers, setTransfers] = useState<HeldTransfer[]>([]);
   const [selected, setSelected] = useState<HeldTransfer | null>(null);
   const [actionLoading, setActionLoading] = useState<string | null>(null);
+  const [loading, setLoading] = useState(true);
+
+  const fetchTransfers = async () => {
+    try {
+      const res = await api.get('/api/v1/core/admin/transactions');
+      // Some formatting from API to HeldTransfer format
+      const formatted = res.data.map((tx: any) => ({
+        ...tx,
+        senderAccountNumber: tx.senderAccount?.accountNumber || tx.senderAccountNumber,
+        receiverAccountNumber: tx.receiverAccount?.accountNumber || tx.receiverAccountNumber
+      }));
+      setTransfers(formatted);
+    } catch (e) {
+      console.error('Failed to fetch transfers', e);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchTransfers();
+  }, []);
 
   const handleAction = async (id: string, action: 'APPROVED' | 'REJECTED') => {
     setActionLoading(id);
-    // Simulate API call
-    await new Promise(r => setTimeout(r, 800));
-    setTransfers(prev => prev.map(t => t.id === id ? { ...t, status: action } : t));
-    setActionLoading(null);
-    setSelected(null);
+    try {
+      const endpoint = action === 'APPROVED' ? `/api/v1/core/admin/transactions/${id}/approve` : `/api/v1/core/admin/transactions/${id}/reject`;
+      await api.post(endpoint);
+      setTransfers(prev => prev.map(t => t.id === id ? { ...t, status: action } : t));
+    } catch (e) {
+      console.error(`Failed to ${action.toLowerCase()} transfer`, e);
+      const status = axios.isAxiosError(e) ? e.response?.status : undefined;
+      if (status === 404 || status === 409) {
+        await fetchTransfers();
+        alert('This transfer was already decided or is no longer available. The list has been refreshed.');
+      } else if (status === 422) {
+        alert('This transfer cannot be approved because the sender has insufficient funds.');
+      } else {
+        alert(`Failed to ${action.toLowerCase()} transfer`);
+      }
+    } finally {
+      setActionLoading(null);
+      setSelected(null);
+    }
   };
 
+  if (loading) {
+    return <div className="flex items-center justify-center h-64 text-white"><Loader2 className="w-8 h-8 animate-spin" /></div>;
+  }
+
   const pending = transfers.filter(t => t.status === 'HELD');
-  const resolved = transfers.filter(t => t.status !== 'HELD');
+  const resolved = transfers.filter(t => t.status === 'APPROVED' || t.status === 'REJECTED');
 
   return (
     <div className="page-enter space-y-8">

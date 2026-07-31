@@ -36,6 +36,35 @@ services:
     container_name: aegis-redis
     ports:
       - "16379:6379"
+    networks:
+      - aegis_network
+
+  # Vault for Secrets Management
+  vault:
+    image: hashicorp/vault:latest
+    container_name: aegis-vault
+    environment:
+      - VAULT_DEV_ROOT_TOKEN_ID=root
+      - VAULT_DEV_LISTEN_ADDRESS=0.0.0.0:8200
+    ports:
+      - "8200:8200"
+    cap_add:
+      - IPC_LOCK
+    networks:
+      - aegis_network
+
+  fraud-ml-engine:
+    build:
+      context: ../../services/fraud-ml-engine
+      dockerfile: Dockerfile
+    container_name: fraud-ml-engine
+    ports:
+      - "8000:8000"
+    volumes:
+      - ../../services/fraud-ml-engine/models:/app/models
+    networks:
+      - aegis_network
+    restart: unless-stopped
 
   # Kafka for Event Streaming
   kafka:
@@ -57,6 +86,40 @@ services:
     volumes:
       - kafka_data:/bitnami/kafka
 
+  # Prometheus for Monitoring
+  prometheus:
+    image: prom/prometheus:v2.53.0
+    container_name: aegis-prometheus
+    ports:
+      - "9090:9090"
+    volumes:
+      - ./prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - prometheus_data:/prometheus
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+      - '--storage.tsdb.path=/prometheus'
+
+  # Grafana for Observability
+  grafana:
+    image: grafana/grafana:11.0.0
+    container_name: aegis-grafana
+    ports:
+      - "3000:3000"
+    environment:
+      - GF_SECURITY_ADMIN_PASSWORD=admin
+    volumes:
+      - grafana_data:/var/lib/grafana
+      - ./grafana/provisioning/datasources:/etc/grafana/provisioning/datasources:ro
+      - ./grafana/provisioning/dashboards:/etc/grafana/provisioning/dashboards:ro
+      - ./grafana/dashboards:/var/lib/grafana/dashboards:ro
+
 volumes:
   keycloak_data:
   kafka_data:
+  prometheus_data:
+  grafana_data:
+
+networks:
+  aegis_network:
+    driver: bridge
+

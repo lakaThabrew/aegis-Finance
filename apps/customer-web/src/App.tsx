@@ -1,11 +1,16 @@
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
-import { AuthProvider, useAuth } from './context/AuthContext';
+import { AuthProvider } from './context/AuthContext';
+import { useAuth } from './hooks/useAuth';
 import AppLayout from './components/AppLayout';
 import LoginPage from './pages/LoginPage';
 import DashboardPage from './pages/DashboardPage';
 import TransactionsPage from './pages/TransactionsPage';
 import BeneficiariesPage from './pages/BeneficiariesPage';
 import SecurityPage from './pages/SecurityPage';
+import SettingsPage from './pages/SettingsPage';
+import AccountsOverviewPage from './pages/AccountsOverviewPage';
+import FundTransferPage from './pages/FundTransferPage';
+import NotificationsPage from './pages/NotificationsPage';
 
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
   const { isAuthenticated } = useAuth();
@@ -25,9 +30,14 @@ function AppRoutes() {
       <Route element={<ProtectedRoute><AppLayout /></ProtectedRoute>}>
         <Route index element={<Navigate to="/dashboard" replace />} />
         <Route path="/dashboard" element={<DashboardPage />} />
+        <Route path="/accounts" element={<AccountsOverviewPage />} />
         <Route path="/transactions" element={<TransactionsPage />} />
+        <Route path="/transfer" element={<FundTransferPage />} />
+        <Route path="/notifications" element={<NotificationsPage />} />
+        <Route path="/cards" element={<div>Cards & Limits</div>} />
         <Route path="/beneficiaries" element={<BeneficiariesPage />} />
         <Route path="/security" element={<SecurityPage />} />
+        <Route path="/settings" element={<SettingsPage />} />
       </Route>
       <Route path="*" element={<Navigate to="/dashboard" replace />} />
     </Routes>

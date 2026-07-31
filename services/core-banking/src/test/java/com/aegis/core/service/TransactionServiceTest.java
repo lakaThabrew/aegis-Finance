@@ -16,6 +16,7 @@ import org.mockito.junit.jupiter.MockitoExtension;
 
 import java.math.BigDecimal;
 import java.util.Optional;
+import java.util.UUID;
 
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.any;
@@ -36,6 +37,9 @@ public class TransactionServiceTest {
 
     @Mock
     private OutboxEventRepository outboxEventRepository;
+
+    @Mock
+    private FraudScreeningService fraudScreeningService;
 
     @InjectMocks
     private TransactionService transactionService;
@@ -67,6 +71,8 @@ public class TransactionServiceTest {
             }
             return t;
         });
+        lenient().when(fraudScreeningService.evaluate(anyString(), any(Account.class), any(Account.class), any(BigDecimal.class)))
+                .thenReturn(new FraudScreeningService.FraudAssessment(10, "APPROVED", "Low risk"));
     }
 
     @Test
@@ -95,6 +101,8 @@ public class TransactionServiceTest {
         // Arrange
         request.setAmount(new BigDecimal("25000.00")); // Triggers riskScore > 70
         senderAccount.setBalance(new BigDecimal("50000.00"));
+        when(fraudScreeningService.evaluate(anyString(), any(Account.class), any(Account.class), eq(new BigDecimal("25000.00"))))
+                .thenReturn(new FraudScreeningService.FraudAssessment(85, "HELD", "Large transaction amount"));
 
         when(accountRepository.findByAccountNumberForUpdate("ACC-1")).thenReturn(Optional.of(senderAccount));
         when(accountRepository.findByAccountNumberForUpdate("ACC-2")).thenReturn(Optional.of(receiverAccount));
@@ -104,7 +112,7 @@ public class TransactionServiceTest {
 
         // Assert
         assertEquals("HELD", result.getStatus());
-        assertEquals("High risk score detected", result.getFraudReasons());
+        assertEquals("Large transaction amount", result.getFraudReasons());
         
         // Balances should remain untouched
         assertEquals(new BigDecimal("50000.00"), senderAccount.getBalance());
@@ -166,5 +174,47 @@ public class TransactionServiceTest {
         assertEquals("idemp-key-456", result.getIdempotencyKey());
         verify(transactionRepository, times(1)).findByIdempotencyKey("idemp-key-456");
         verify(transactionRepository, times(1)).save(any(Transaction.class));
+    }
+
+    @Test
+    void shouldApproveHeldTransferUsingTransactionWithAccounts() {
+        UUID transactionId = UUID.randomUUID();
+        Transaction heldTransfer = new Transaction();
+        heldTransfer.setId(transactionId);
+        heldTransfer.setStatus("HELD");
+        heldTransfer.setAmount(new BigDecimal("200.00"));
+        heldTransfer.setSenderAccount(senderAccount);
+        heldTransfer.setReceiverAccount(receiverAccount);
+
+        when(transactionRepository.findByIdWithAccounts(transactionId)).thenReturn(Optional.of(heldTransfer));
+        when(accountRepository.findByAccountNumberForUpdate("ACC-1")).thenReturn(Optional.of(senderAccount));
+        when(accountRepository.findByAccountNumberForUpdate("ACC-2")).thenReturn(Optional.of(receiverAccount));
+
+        Transaction result = transactionService.approveTransaction(transactionId);
+
+        assertEquals("APPROVED", result.getStatus());
+        assertEquals(new BigDecimal("800.00"), senderAccount.getBalance());
+        assertEquals(new BigDecimal("700.00"), receiverAccount.getBalance());
+        verify(transactionRepository).findByIdWithAccounts(transactionId);
+        verify(ledgerEntryRepository, times(2)).save(any());
+    }
+
+    @Test
+    void shouldRejectHeldTransferUsingTransactionWithAccounts() {
+        UUID transactionId = UUID.randomUUID();
+        Transaction heldTransfer = new Transaction();
+        heldTransfer.setId(transactionId);
+        heldTransfer.setStatus("HELD");
+        heldTransfer.setAmount(new BigDecimal("200.00"));
+        heldTransfer.setSenderAccount(senderAccount);
+        heldTransfer.setReceiverAccount(receiverAccount);
+
+        when(transactionRepository.findByIdWithAccounts(transactionId)).thenReturn(Optional.of(heldTransfer));
+
+        Transaction result = transactionService.rejectTransaction(transactionId);
+
+        assertEquals("REJECTED", result.getStatus());
+        verify(transactionRepository).findByIdWithAccounts(transactionId);
+        verify(ledgerEntryRepository, never()).save(any());
     }
 }

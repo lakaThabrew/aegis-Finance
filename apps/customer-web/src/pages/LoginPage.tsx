@@ -1,6 +1,6 @@
 
 import { ArrowRight, CheckCircle2, Fingerprint, ShieldCheck } from 'lucide-react';
-import { useAuth } from '../context/AuthContext';
+import { useAuth } from '../hooks/useAuth';
 import securityHero from '../assets/aegis-security-hero.png';
 import { Navigate } from 'react-router-dom';
 

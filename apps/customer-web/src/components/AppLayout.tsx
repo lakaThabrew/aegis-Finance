@@ -1,6 +1,7 @@
 import { Bell, ShieldCheck } from 'lucide-react';
 import { NavLink, Outlet } from 'react-router-dom';
 import Sidebar from './Sidebar';
+import AiAssistantWidget from './AiAssistantWidget';
 
 export default function AppLayout() {
   return (
@@ -9,7 +10,7 @@ export default function AppLayout() {
       <main className="relative min-w-0 flex-1 overflow-auto px-5 pb-24 pt-5 sm:px-8 sm:pt-8 lg:px-10 lg:pb-10">
         <div className="mb-7 flex items-center justify-between lg:hidden">
           <NavLink to="/dashboard" className="flex items-center gap-2"><span className="flex h-9 w-9 items-center justify-center rounded-xl bg-gradient-to-br from-blue-400 to-violet-600"><ShieldCheck className="h-5 w-5 text-white" /></span><span><b className="block text-sm leading-none text-white">Aegis</b><small className="text-[10px] font-medium tracking-[.16em] text-blue-300">FINANCE</small></span></NavLink>
-          <button className="glass rounded-xl p-2.5 text-slate-300" aria-label="Open notifications"><Bell className="h-4 w-4" /></button>
+          <NavLink to="/notifications" className="glass rounded-xl p-2.5 text-slate-300" aria-label="Open notifications"><Bell className="h-4 w-4" /></NavLink>
         </div>
         <Outlet />
       </main>
@@ -19,6 +20,7 @@ export default function AppLayout() {
         <MobileNav to="/beneficiaries" label="Send" icon="↑" />
         <MobileNav to="/security" label="Security" icon="◈" />
       </nav>
+      <AiAssistantWidget />
     </div>
   );
 }

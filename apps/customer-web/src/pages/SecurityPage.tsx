@@ -1,19 +1,8 @@
-import { useState } from 'react';
-import { ShieldAlert, Smartphone, Lock, AlertTriangle, Clock, CheckCircle2 } from 'lucide-react';
+import { useEffect, useState } from 'react';
+import { ShieldAlert, Smartphone, Lock, AlertTriangle, Clock, CheckCircle2, CreditCard, Loader2 } from 'lucide-react';
 import securityHero from '../assets/aegis-security-hero.png';
-
-const MOCK_DEVICES = [
-  { id: 'd1', name: 'Chrome on Windows', trusted: true, lastSeen: '2 hours ago', location: 'Colombo, LK' },
-  { id: 'd2', name: 'Safari on iPhone', trusted: true, lastSeen: '1 day ago', location: 'Colombo, LK' },
-  { id: 'd3', name: 'Firefox on Linux', trusted: false, lastSeen: '5 minutes ago', location: 'Unknown' },
-];
-
-const MOCK_AUDIT = [
-  { id: 'a1', event: 'Login successful', timestamp: '2026-07-27 10:22 AM', severity: 'info' },
-  { id: 'a2', event: 'Transfer $1,500 to AGS-0099-2024 — COMPLETED', timestamp: '2026-07-27 09:15 AM', severity: 'info' },
-  { id: 'a3', event: 'Transfer $25,000 to AGS-0077-2024 — HELD (Risk Score: 85)', timestamp: '2026-07-27 08:55 AM', severity: 'warning' },
-  { id: 'a4', event: 'Unrecognized device login attempt blocked', timestamp: '2026-07-26 11:03 PM', severity: 'critical' },
-];
+import type { Account } from '../types';
+import api from '../api/client';
 
 const SEV_STYLE: Record<string, string> = {
   info: 'text-blue-400 bg-blue-500/10 border-blue-500/20',
@@ -27,12 +16,101 @@ const SEV_ICON: Record<string, React.ReactNode> = {
   critical: <ShieldAlert className="w-4 h-4 shrink-0" />,
 };
 
-export default function SecurityPage() {
-  const [frozen, setFrozen] = useState(false);
-  const [devices, setDevices] = useState(MOCK_DEVICES);
+type LinkedCard = {
+  id: string;
+  accountId: string | null;
+  cardNumber: string;
+  isFrozen: boolean;
+};
 
-  const toggleTrust = (id: string) => {
-    setDevices(prev => prev.map(d => d.id === id ? { ...d, trusted: !d.trusted } : d));
+type TrustedDevice = {
+  id: string;
+  name: string;
+  location: string;
+  trusted: boolean;
+  lastSeen: string;
+};
+
+type TrustedDeviceResponse = {
+  id: string;
+  deviceName: string;
+  trusted: boolean;
+  lastSeen: string;
+};
+
+type SecurityAuditEvent = {
+  id: string;
+  eventType: string;
+  message: string;
+  createdAt: string;
+};
+
+function severityFor(eventType: string) {
+  if (eventType === 'ACCOUNT_FROZEN') return 'critical';
+  if (eventType.includes('FAILED') || eventType.includes('BLOCKED')) return 'warning';
+  return 'info';
+}
+
+export default function SecurityPage() {
+  const [devices, setDevices] = useState<TrustedDevice[]>([]);
+  const [accounts, setAccounts] = useState<Account[]>([]);
+  const [cards, setCards] = useState<LinkedCard[]>([]);
+  const [selectedAccountId, setSelectedAccountId] = useState('');
+  const [freezeSaving, setFreezeSaving] = useState(false);
+  const [freezeError, setFreezeError] = useState<string | null>(null);
+  const [auditEvents, setAuditEvents] = useState<SecurityAuditEvent[]>([]);
+
+  useEffect(() => {
+    async function loadSecurityControls() {
+      try {
+        const [accountResponse, cardResponse, auditResponse, deviceResponse] = await Promise.all([
+          api.get<Account[]>('/api/v1/core/accounts'),
+          api.get<LinkedCard[]>('/api/v1/core/cards'),
+          api.get<SecurityAuditEvent[]>('/api/v1/core/security/events'),
+          api.get<TrustedDeviceResponse[]>('/api/v1/core/security/devices'),
+        ]);
+        setAccounts(accountResponse.data);
+        setCards(cardResponse.data);
+        setAuditEvents(auditResponse.data);
+        setDevices(deviceResponse.data.map((device) => ({ id: device.id, name: device.deviceName, location: 'Last seen', trusted: device.trusted, lastSeen: new Date(device.lastSeen).toLocaleString() })));
+        if (accountResponse.data[0]) setSelectedAccountId(accountResponse.data[0].id);
+      } catch (error) {
+        console.error('Failed to load account security controls', error);
+        setFreezeError('Unable to load account security controls.');
+      }
+    }
+    void loadSecurityControls();
+  }, []);
+
+  const toggleTrust = async (device: TrustedDevice) => {
+    try {
+      const response = await api.patch<TrustedDeviceResponse>(`/api/v1/core/security/devices/${device.id}`, { trusted: !device.trusted });
+      setDevices((current) => current.map((entry) => entry.id === device.id ? { ...entry, trusted: response.data.trusted } : entry));
+    } catch (error) {
+      console.error('Failed to update trusted device', error);
+      setFreezeError('Unable to update the device trust status.');
+    }
+  };
+
+  const selectedAccount = accounts.find((account) => account.id === selectedAccountId);
+  const linkedCards = cards.filter((card) => card.accountId === selectedAccountId);
+  const isFrozen = selectedAccount?.status === 'FROZEN';
+
+  const toggleAccountFreeze = async () => {
+    if (!selectedAccount) return;
+    const frozen = !isFrozen;
+    setFreezeSaving(true);
+    setFreezeError(null);
+    try {
+      const response = await api.patch<Account>(`/api/v1/core/accounts/${selectedAccount.id}/freeze`, { frozen });
+      setAccounts((current) => current.map((account) => account.id === response.data.id ? response.data : account));
+      setCards((current) => current.map((card) => card.accountId === response.data.id ? { ...card, isFrozen: frozen } : card));
+    } catch (error) {
+      console.error('Failed to update account freeze status', error);
+      setFreezeError('Unable to update the account freeze status.');
+    } finally {
+      setFreezeSaving(false);
+    }
   };
 
   return (
@@ -49,25 +127,31 @@ export default function SecurityPage() {
       </section>
 
       {/* Account Freeze */}
-      <div className={`rounded-2xl p-6 border transition-all ${frozen ? 'bg-red-500/10 border-red-500/30' : 'glass border-gray-800'}`}>
+      <div className={`rounded-2xl p-6 border transition-all ${isFrozen ? 'bg-red-500/10 border-red-500/30' : 'glass border-gray-800'}`}>
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-4">
-            <div className={`w-12 h-12 rounded-2xl flex items-center justify-center ${frozen ? 'bg-red-500/20' : 'bg-blue-500/20'}`}>
-              <Lock className={`w-6 h-6 ${frozen ? 'text-red-400' : 'text-blue-400'}`} />
+            <div className={`w-12 h-12 rounded-2xl flex items-center justify-center ${isFrozen ? 'bg-red-500/20' : 'bg-blue-500/20'}`}>
+              <Lock className={`w-6 h-6 ${isFrozen ? 'text-red-400' : 'text-blue-400'}`} />
             </div>
             <div>
               <p className="text-white font-semibold">Account Freeze</p>
-              <p className="text-sm text-gray-400">{frozen ? 'Your account is currently frozen. All transactions are blocked.' : 'Instantly freeze all transactions if you suspect fraud.'}</p>
+              <p className="text-sm text-gray-400">{isFrozen ? 'This account and its linked card are frozen. Transfers are blocked.' : 'Freeze one account and its linked card if you suspect fraud.'}</p>
             </div>
           </div>
           <button
             id="freeze-account-btn"
-            onClick={() => setFrozen(!frozen)}
-            className={`px-5 py-2.5 rounded-xl font-medium text-sm transition ${frozen ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 hover:bg-emerald-500/30' : 'bg-red-500/20 text-red-400 border border-red-500/30 hover:bg-red-500/30'}`}
+            onClick={() => void toggleAccountFreeze()}
+            disabled={!selectedAccount || freezeSaving}
+            className={`px-5 py-2.5 rounded-xl font-medium text-sm transition disabled:opacity-50 ${isFrozen ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 hover:bg-emerald-500/30' : 'bg-red-500/20 text-red-400 border border-red-500/30 hover:bg-red-500/30'}`}
           >
-            {frozen ? 'Unfreeze Account' : 'Freeze Account'}
+            {freezeSaving ? <Loader2 className="h-4 w-4 animate-spin" /> : isFrozen ? 'Unfreeze Account' : 'Freeze Account'}
           </button>
         </div>
+        <div className="mt-5 grid gap-3 sm:grid-cols-2">
+          <label className="text-xs font-medium text-gray-400">Account<select value={selectedAccountId} onChange={(event) => setSelectedAccountId(event.target.value)} className="mt-1.5 w-full rounded-xl border border-white/10 bg-black/20 p-2.5 text-sm text-white"><option value="">Select an account</option>{accounts.map((account) => <option key={account.id} value={account.id}>{account.accountNumber} · {account.status}</option>)}</select></label>
+          <div className="rounded-xl border border-white/10 bg-white/[.03] p-3"><p className="flex items-center gap-2 text-xs font-medium text-gray-400"><CreditCard className="h-3.5 w-3.5" />Linked cards</p><p className="mt-1 text-sm font-semibold text-white">{linkedCards.length} card{linkedCards.length === 1 ? '' : 's'} {isFrozen && linkedCards.length > 0 ? 'frozen' : 'protected'}</p></div>
+        </div>
+        {freezeError && <p className="mt-3 text-sm text-red-300">{freezeError}</p>}
       </div>
 
       {/* Trusted Devices */}
@@ -92,13 +176,14 @@ export default function SecurityPage() {
               )}
               <button
                 id={`trust-device-${device.id}`}
-                onClick={() => toggleTrust(device.id)}
+                onClick={() => void toggleTrust(device)}
                 className={`px-3 py-1.5 rounded-lg text-xs font-medium border transition ${device.trusted ? 'text-gray-400 border-gray-700 hover:text-red-400 hover:border-red-500/30' : 'text-emerald-400 border-emerald-500/30 hover:bg-emerald-500/10'}`}
               >
                 {device.trusted ? 'Remove Trust' : 'Trust Device'}
               </button>
             </div>
           ))}
+          {devices.length === 0 && <p className="rounded-xl border border-white/10 p-4 text-sm text-gray-400">No signed-in devices have been recorded yet.</p>}
         </div>
       </div>
 
@@ -106,23 +191,27 @@ export default function SecurityPage() {
       <div>
         <h2 className="text-lg font-semibold text-white mb-4">Audit Trail</h2>
         <div className="glass rounded-2xl overflow-hidden">
-          {MOCK_AUDIT.map((entry, i) => (
-            <div
-              key={entry.id}
-              id={`audit-${entry.id}`}
-              className={`flex items-center gap-4 p-4 ${i < MOCK_AUDIT.length - 1 ? 'border-b border-gray-800/60' : ''}`}
-            >
-              <span className={`flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-medium border ${SEV_STYLE[entry.severity]}`}>
-                {SEV_ICON[entry.severity]}
-                {entry.severity.charAt(0).toUpperCase() + entry.severity.slice(1)}
-              </span>
-              <p className="flex-1 text-sm text-gray-300">{entry.event}</p>
-              <div className="flex items-center gap-1.5 text-gray-500 text-xs shrink-0">
-                <Clock className="w-3.5 h-3.5" />
-                {entry.timestamp}
+          {auditEvents.length === 0 && <p className="p-5 text-sm text-gray-400">No security events have been recorded yet.</p>}
+          {auditEvents.map((entry, i) => {
+            const severity = severityFor(entry.eventType);
+            return (
+              <div
+                key={entry.id}
+                id={`audit-${entry.id}`}
+                className={`flex items-center gap-4 p-4 ${i < auditEvents.length - 1 ? 'border-b border-gray-800/60' : ''}`}
+              >
+                <span className={`flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-medium border ${SEV_STYLE[severity]}`}>
+                  {SEV_ICON[severity]}
+                  {severity.charAt(0).toUpperCase() + severity.slice(1)}
+                </span>
+                <p className="flex-1 text-sm text-gray-300">{entry.message}</p>
+                <div className="flex items-center gap-1.5 text-gray-500 text-xs shrink-0">
+                  <Clock className="w-3.5 h-3.5" />
+                  {new Date(entry.createdAt).toLocaleString()}
+                </div>
               </div>
-            </div>
-          ))}
+            );
+          })}
         </div>
       </div>
     </div>

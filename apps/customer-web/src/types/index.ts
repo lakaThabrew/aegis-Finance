@@ -6,6 +6,7 @@ export interface Account {
   currency: string;
   balance: number;
   status: 'ACTIVE' | 'FROZEN';
+  createdAt: string;
 }
 
 export interface Transaction {
@@ -17,7 +18,7 @@ export interface Transaction {
   receiverAccount?: Account;
   amount: number | string;
   currency: string;
-  status: 'COMPLETED' | 'HELD' | 'REJECTED';
+  status: 'COMPLETED' | 'HELD' | 'APPROVED' | 'REJECTED';
   riskScore?: number;
   createdAt: string;
   completedAt?: string;

@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { Wallet, TrendingUp, ArrowUpRight, ArrowDownLeft, Copy, CheckCircle2, RefreshCw, ShieldCheck, Sparkles, Loader2 } from 'lucide-react';
 import type { Account, Transaction } from '../types';
 import api from '../api/client';
@@ -20,6 +20,7 @@ function timeAgo(isoDate: string) {
 function StatusBadge({ status }: { status: Transaction['status'] }) {
   const cfg: Record<string, string> = {
     COMPLETED: 'bg-emerald-500/15 text-emerald-400 border-emerald-500/30',
+    APPROVED: 'bg-emerald-500/15 text-emerald-400 border-emerald-500/30',
     HELD: 'bg-amber-500/15 text-amber-400 border-amber-500/30',
     REJECTED: 'bg-red-500/15 text-red-400 border-red-500/30',
   };
@@ -35,8 +36,8 @@ export default function DashboardPage() {
   const [selectedAccount, setSelectedAccount] = useState<Account | null>(null);
   const [loading, setLoading] = useState(true);
 
-  const loadData = async () => {
-    setLoading(true);
+  const loadData = useCallback(async (showLoading = true) => {
+    if (showLoading) setLoading(true);
     try {
       const [accRes, txRes] = await Promise.all([
         api.get('/api/v1/core/accounts'),
@@ -44,27 +45,31 @@ export default function DashboardPage() {
       ]);
       setAccounts(accRes.data);
       // Sort transactions by date descending
-      const sortedTxs = txRes.data.sort((a: Transaction, b: Transaction) => 
+      const sortedTxs = [...txRes.data].sort((a: Transaction, b: Transaction) => 
         new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
       );
       setTransactions(sortedTxs);
-      if (accRes.data.length > 0 && !selectedAccount) {
-        setSelectedAccount(accRes.data[0]);
-      } else if (accRes.data.length > 0 && selectedAccount) {
-        // update selected account reference
-        const updated = accRes.data.find((a: Account) => a.id === selectedAccount.id);
-        if (updated) setSelectedAccount(updated);
-      }
+      setSelectedAccount((current) => {
+        if (!current) return null;
+        return accRes.data.find((account: Account) => account.id === current.id) ?? null;
+      });
     } catch (e) {
       console.error('Failed to load dashboard data', e);
     } finally {
       setLoading(false);
     }
-  };
+  }, []);
 
   useEffect(() => {
-    loadData();
-  }, []);
+    void loadData();
+    const refreshTimer = window.setInterval(() => void loadData(false), 20_000);
+    const refreshOnFocus = () => void loadData(false);
+    window.addEventListener('focus', refreshOnFocus);
+    return () => {
+      window.clearInterval(refreshTimer);
+      window.removeEventListener('focus', refreshOnFocus);
+    };
+  }, [loadData]);
 
   const copyAccount = (num: string) => {
     navigator.clipboard.writeText(num);
@@ -77,6 +82,8 @@ export default function DashboardPage() {
   }
 
   const totalBalance = accounts.reduce((s, a) => s + (typeof a.balance === 'number' ? a.balance : parseFloat(a.balance as string)), 0);
+  const ownedAccountNumbers = new Set(accounts.map((account) => account.accountNumber));
+  const visibleTransactions = transactions.filter((transaction) => !selectedAccount || transaction.senderAccount?.accountNumber === selectedAccount.accountNumber || transaction.receiverAccount?.accountNumber === selectedAccount.accountNumber);
 
   return (
     <div className="page-enter space-y-8">
@@ -87,7 +94,7 @@ export default function DashboardPage() {
           <h1 className="text-3xl font-bold tracking-tight text-white">Good morning, Alex.</h1>
           <p className="mt-1 text-sm text-slate-400">Everything is secure. Here is your financial pulse.</p>
         </div>
-        <button onClick={loadData} className="glass flex items-center gap-2 rounded-xl px-4 py-2 text-sm text-slate-300 transition hover:text-white disabled:opacity-50">
+        <button onClick={() => void loadData()} className="glass flex items-center gap-2 rounded-xl px-4 py-2 text-sm text-slate-300 transition hover:text-white disabled:opacity-50">
           <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} /> Refresh
         </button>
       </div>
@@ -113,7 +120,7 @@ export default function DashboardPage() {
 
       {/* Account Cards */}
       <div>
-        <div className="mb-4 flex items-center justify-between"><div><h2 className="text-lg font-semibold text-white">Your accounts</h2><p className="text-xs text-slate-500">Select an account to view its activity</p></div><Sparkles className="h-4 w-4 text-violet-300" /></div>
+        <div className="mb-4 flex items-center justify-between"><div><h2 className="text-lg font-semibold text-white">Your accounts</h2><p className="text-xs text-slate-500">Select an account to filter recent activity</p></div><Sparkles className="h-4 w-4 text-violet-300" /></div>
         <div className="stagger-in grid grid-cols-1 gap-4 md:grid-cols-2">
           {accounts.map(acc => (
             <div
@@ -150,18 +157,19 @@ export default function DashboardPage() {
       {/* Recent Transactions */}
       <div>
         <div className="flex items-center justify-between mb-4">
-          <h2 className="text-lg font-semibold text-white">Recent Activity</h2>
+          <div><h2 className="text-lg font-semibold text-white">Recent Activity</h2><p className="text-xs text-slate-500">{selectedAccount ? `Showing ${selectedAccount.accountNumber}` : 'Showing all accounts'}</p></div>
+          {selectedAccount && <button onClick={() => setSelectedAccount(null)} className="ml-auto mr-4 text-xs text-slate-400 transition hover:text-white">Show all</button>}
           <a href="/transactions" className="text-sm text-blue-400 hover:text-blue-300 flex items-center gap-1 transition">
             View all <ArrowUpRight className="w-3.5 h-3.5" />
           </a>
         </div>
         <div className="glass rounded-2xl overflow-hidden">
-          {transactions.filter(tx => !selectedAccount || tx.senderAccount?.accountNumber === selectedAccount.accountNumber || tx.receiverAccount?.accountNumber === selectedAccount.accountNumber).slice(0, 10).map((tx) => {
+          {visibleTransactions.slice(0, 10).map((tx) => {
             // Note: The API returns the nested account objects instead of just strings.
             const senderNum = (tx as any).senderAccount?.accountNumber || tx.senderAccountNumber;
             const receiverNum = (tx as any).receiverAccount?.accountNumber || tx.receiverAccountNumber;
             
-            const isSent = selectedAccount ? senderNum === selectedAccount.accountNumber : true;
+            const isSent = selectedAccount ? senderNum === selectedAccount.accountNumber : ownedAccountNumbers.has(senderNum ?? '');
             
             return (
               <div
@@ -188,7 +196,7 @@ export default function DashboardPage() {
               </div>
             );
           })}
-          {transactions.length === 0 && <div className="p-8 text-center text-gray-500">No recent transactions.</div>}
+          {visibleTransactions.length === 0 && <div className="p-8 text-center text-gray-500">No recent transactions for this account.</div>}
         </div>
       </div>
     </div>

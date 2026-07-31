@@ -1,19 +1,8 @@
-import { Activity, AlertTriangle, DollarSign, ShieldAlert, TrendingUp, ArrowUpRight } from 'lucide-react';
+import { useState, useEffect } from 'react';
+import { Activity, AlertTriangle, DollarSign, ShieldAlert, TrendingUp, ArrowUpRight, Loader2 } from 'lucide-react';
 import fraudRadarHero from '../assets/fraud-radar-hero.png';
-
-const STATS = [
-  { label: 'Total Transactions', value: '1,247', change: '+12%', icon: Activity, color: 'text-blue-400', bg: 'bg-blue-500/15 border-blue-500/30' },
-  { label: 'Held Transfers', value: '3', change: '+1 today', icon: AlertTriangle, color: 'text-amber-400', bg: 'bg-amber-500/15 border-amber-500/30' },
-  { label: 'Total Volume', value: '$2.4M', change: '+8.2%', icon: DollarSign, color: 'text-emerald-400', bg: 'bg-emerald-500/15 border-emerald-500/30' },
-  { label: 'Flagged Rate', value: '2.1%', change: '-0.3%', icon: ShieldAlert, color: 'text-red-400', bg: 'bg-red-500/15 border-red-500/30' },
-];
-
-const RECENT_ALERTS = [
-  { id: 'ra1', message: 'Transfer $25,000 from AGS-0001 to AGS-0077 held — Risk Score 85', time: '35 min ago', severity: 'critical' as const },
-  { id: 'ra2', message: 'New device login attempt from unrecognized IP for customer-003', time: '2h ago', severity: 'warning' as const },
-  { id: 'ra3', message: 'Bulk transfer pattern detected from AGS-0012', time: '4h ago', severity: 'warning' as const },
-  { id: 'ra4', message: 'Account AGS-0045 frozen by customer request', time: '6h ago', severity: 'info' as const },
-];
+import api from '../api/client';
+import type { DashboardStats, AuditEntry } from '../types';
 
 const SEV_STYLE: Record<string, string> = {
   info: 'bg-blue-500/10 text-blue-400 border-blue-500/20',
@@ -21,7 +10,63 @@ const SEV_STYLE: Record<string, string> = {
   critical: 'bg-red-500/10 text-red-400 border-red-500/20',
 };
 
+function formatCurrency(amount: number) {
+  return new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', maximumFractionDigits: 0 }).format(amount);
+}
+
+function timeAgo(isoDate: string) {
+  if (!isoDate) return '';
+  const diff = Date.now() - new Date(isoDate).getTime();
+  const mins = Math.floor(diff / 60000);
+  if (mins < 60) return `${mins} min ago`;
+  const hrs = Math.floor(mins / 60);
+  if (hrs < 24) return `${hrs}h ago`;
+  return `${Math.floor(hrs / 24)}d ago`;
+}
+
 export default function OverviewPage() {
+  const [stats, setStats] = useState<DashboardStats | null>(null);
+  const [alerts, setAlerts] = useState<AuditEntry[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    async function loadData() {
+      try {
+        const [statsRes, auditRes] = await Promise.all([
+          api.get('/api/v1/core/admin/stats'),
+          api.get('/api/v1/core/admin/audit')
+        ]);
+        setStats(statsRes.data);
+        
+        const mappedAlerts: AuditEntry[] = auditRes.data.map((a: any) => ({
+          id: a.id,
+          event: a.eventType,
+          actor: 'System',
+          severity: a.eventType.includes('Held') || a.eventType.includes('Rejected') ? 'warning' : 'info',
+          timestamp: a.createdAt || new Date().toISOString()
+        })).slice(0, 5); // Just show top 5 recent alerts
+        
+        setAlerts(mappedAlerts);
+      } catch (e) {
+        console.error('Failed to load overview data', e);
+      } finally {
+        setLoading(false);
+      }
+    }
+    loadData();
+  }, []);
+
+  if (loading) {
+    return <div className="flex items-center justify-center h-64 text-white"><Loader2 className="w-8 h-8 animate-spin" /></div>;
+  }
+
+  const dynamicStats = [
+    { label: 'Total Transactions', value: stats?.totalTransactions?.toString() || '0', change: '+0%', icon: Activity, color: 'text-blue-400', bg: 'bg-blue-500/15 border-blue-500/30' },
+    { label: 'Held Transfers', value: stats?.heldTransfers?.toString() || '0', change: 'Live', icon: AlertTriangle, color: 'text-amber-400', bg: 'bg-amber-500/15 border-amber-500/30' },
+    { label: 'Total Volume', value: formatCurrency(stats?.totalVolume || 0), change: 'Live', icon: DollarSign, color: 'text-emerald-400', bg: 'bg-emerald-500/15 border-emerald-500/30' },
+    { label: 'Flagged Rate', value: `${(stats?.flaggedPercentage || 0).toFixed(1)}%`, change: 'Live', icon: ShieldAlert, color: 'text-red-400', bg: 'bg-red-500/15 border-red-500/30' },
+  ];
+
   return (
     <div className="page-enter space-y-8">
       {/* Header */}
@@ -33,7 +78,7 @@ export default function OverviewPage() {
 
       {/* Stats Grid */}
       <div className="stagger-in grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-4">
-        {STATS.map(({ label, value, change, icon: Icon, color, bg }) => (
+        {dynamicStats.map(({ label, value, change, icon: Icon, color, bg }) => (
           <div key={label} className="glass rounded-2xl p-6 card-hover">
             <div className="flex items-start justify-between mb-4">
               <div className={`w-10 h-10 rounded-xl flex items-center justify-center border ${bg}`}>
@@ -83,14 +128,14 @@ export default function OverviewPage() {
             </a>
           </div>
           <div className="space-y-3">
-            {RECENT_ALERTS.map(alert => (
+            {alerts.length === 0 ? <p className="text-slate-500 text-sm">No recent alerts</p> : alerts.map(alert => (
               <div key={alert.id} id={`alert-${alert.id}`} className="flex items-start gap-3 p-3 rounded-xl bg-white/2 hover:bg-white/5 transition">
                 <span className={`mt-0.5 px-2 py-0.5 rounded-md text-xs font-medium border shrink-0 ${SEV_STYLE[alert.severity]}`}>
                   {alert.severity}
                 </span>
                 <div className="flex-1 min-w-0">
-                  <p className="text-sm text-slate-300 leading-snug">{alert.message}</p>
-                  <p className="text-xs text-slate-500 mt-1">{alert.time}</p>
+                  <p className="text-sm text-slate-300 leading-snug">{alert.event}</p>
+                  <p className="text-xs text-slate-500 mt-1">{timeAgo(alert.timestamp)}</p>
                 </div>
               </div>
             ))}

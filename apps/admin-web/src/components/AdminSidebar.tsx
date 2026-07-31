@@ -1,14 +1,22 @@
-import { ShieldAlert, LayoutDashboard, AlertTriangle, ScrollText, LogOut, ChevronRight } from 'lucide-react';
+import { ShieldAlert, LayoutDashboard, AlertTriangle, ScrollText, LogOut, ChevronRight, Activity, Users } from 'lucide-react';
 import { Link, useLocation } from 'react-router-dom';
+import { keycloak } from '../auth/keycloak';
 
 const nav = [
   { label: 'Overview', icon: LayoutDashboard, href: '/admin' },
+  { label: 'Customers', icon: Users, href: '/admin/customers' },
   { label: 'Held Transfers', icon: AlertTriangle, href: '/admin/held-transfers' },
+  { label: 'SOC Dashboard', icon: Activity, href: '/admin/soc-dashboard' },
   { label: 'Audit Log', icon: ScrollText, href: '/admin/audit' },
 ];
 
 export default function AdminSidebar() {
   const location = useLocation();
+
+  const logout = async () => {
+    localStorage.removeItem('aegis_token');
+    await keycloak.logout({ redirectUri: 'http://localhost:5174/' });
+  };
 
   return (
     <aside className="glass sticky top-0 hidden h-screen w-72 shrink-0 flex-col border-r border-white/8 lg:flex">
@@ -61,6 +69,7 @@ export default function AdminSidebar() {
         <div className="mb-3 rounded-xl border border-emerald-400/10 bg-emerald-400/[.06] p-3"><p className="text-[10px] font-bold tracking-[.14em] text-emerald-300">REVIEW DESK</p><p className="mt-1 flex items-center gap-1.5 text-xs text-slate-300"><span className="h-1.5 w-1.5 rounded-full bg-emerald-400" />Secure channel active</p></div>
         <button
           id="admin-logout-btn"
+          onClick={() => void logout()}
           className="flex items-center gap-3 px-4 py-2.5 w-full rounded-xl text-sm text-red-400 hover:bg-red-500/10 transition"
         >
           <LogOut className="w-4 h-4" />
