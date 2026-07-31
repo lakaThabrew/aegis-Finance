@@ -15,6 +15,9 @@ public class Card {
     @Column(name = "customer_id", nullable = false)
     private String customerId;
 
+    @Column(name = "account_id")
+    private UUID accountId;
+
     @Column(name = "card_number", unique = true, nullable = false)
     private String cardNumber;
 
@@ -48,6 +51,8 @@ public class Card {
 
     public String getCustomerId() { return customerId; }
     public void setCustomerId(String customerId) { this.customerId = customerId; }
+    public UUID getAccountId() { return accountId; }
+    public void setAccountId(UUID accountId) { this.accountId = accountId; }
 
     public String getCardNumber() { return cardNumber; }
     public void setCardNumber(String cardNumber) { this.cardNumber = cardNumber; }
