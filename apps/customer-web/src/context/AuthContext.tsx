@@ -1,25 +1,7 @@
-import React, { createContext, useContext, useState, useEffect } from 'react';
-import Keycloak from 'keycloak-js';
-
-const keycloakConfig = {
-  url: 'http://localhost:8080',
-  realm: 'aegis',
-  clientId: 'aegis-frontend'
-};
-
-const keycloak = new Keycloak(keycloakConfig);
-
-interface AuthContextType {
-  token: string | null;
-  customerId: string | null;
-  login: () => void;
-  logout: () => void;
-  isAuthenticated: boolean;
-  isInitialized: boolean;
-}
-
-const AuthContext = createContext<AuthContextType | null>(null);
-
+import React, { useState, useEffect } from 'react';
+import { AuthContext } from './auth-context';
+import { initializeCustomerKeycloak, keycloak } from '../auth/keycloak';
+import api from '../api/client';
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [isInitialized, setIsInitialized] = useState(false);
   const [isAuthenticated, setIsAuthenticated] = useState(false);
@@ -27,28 +9,57 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [customerId, setCustomerId] = useState<string | null>(null);
 
   useEffect(() => {
-    keycloak.init({ onLoad: 'check-sso' })
+    let mounted = true;
+
+    initializeCustomerKeycloak()
       .then((authenticated) => {
+        if (!mounted) return;
+
         setIsAuthenticated(authenticated);
         if (authenticated) {
           setToken(keycloak.token || null);
           const cid = (keycloak.tokenParsed as any)?.customerId?.[0] || 'customer-001';
           setCustomerId(cid);
           localStorage.setItem('aegis_token', keycloak.token || '');
+          void Promise.all([
+            api.post('/api/v1/core/security/events/login'),
+            api.post('/api/v1/core/security/devices/current'),
+          ]).catch((error) => {
+            console.error('Failed to record login audit event', error);
+          });
           
           // Set up token refresh
           keycloak.onTokenExpired = () => {
-            keycloak.updateToken(30).then(refreshed => {
-              if (refreshed) {
+            keycloak.updateToken(30).then(() => {
+              if (keycloak.token) {
                 setToken(keycloak.token || null);
                 localStorage.setItem('aegis_token', keycloak.token || '');
               }
+            }).catch((error) => {
+              console.error('Unable to refresh Keycloak token', error);
+              localStorage.removeItem('aegis_token');
+              setToken(null);
+              setIsAuthenticated(false);
             });
           };
+        } else {
+          // Do not let an expired token from an earlier session reach the API.
+          setToken(null);
+          setCustomerId(null);
+          localStorage.removeItem('aegis_token');
         }
         setIsInitialized(true);
       })
-      .catch(console.error);
+      .catch((error) => {
+        if (mounted) {
+          console.error('Failed to initialize Keycloak', error);
+          setIsInitialized(true);
+        }
+      });
+
+    return () => {
+      mounted = false;
+    };
   }, []);
 
   const login = () => {
@@ -65,10 +76,4 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       {children}
     </AuthContext.Provider>
   );
-}
-
-export function useAuth() {
-  const ctx = useContext(AuthContext);
-  if (!ctx) throw new Error('useAuth must be used within AuthProvider');
-  return ctx;
 }
