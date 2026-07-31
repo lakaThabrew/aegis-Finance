@@ -6,8 +6,10 @@ scrape_configs:
     metrics_path: '/actuator/prometheus'
     static_configs:
       - targets:
-          - 'api-gateway:8080'
-          - 'core-banking:8081'
-          - 'fraud-service:8083'
-          - 'notification-service:8084'
-          - 'identity-service:8085'
+          # Spring Boot services run on the Windows host through start-backend.bat.
+          # Docker Desktop resolves host.docker.internal to that host.
+          - 'host.docker.internal:8084' # API Gateway
+          - 'host.docker.internal:8081' # Core Banking
+          - 'host.docker.internal:8082' # Fraud Service
+          - 'host.docker.internal:8083' # Notification Service
+          - 'host.docker.internal:8085' # Identity Service

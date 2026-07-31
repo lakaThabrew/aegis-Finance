@@ -4,8 +4,8 @@ echo =========================================
 echo Starting Aegis Frontend Web Apps...
 echo =========================================
 
-start "Admin Portal" cmd /k "cd apps\admin-web && npm run dev"
-start "Customer Portal" cmd /k "cd apps\customer-web && npm run dev"
+start "Admin Portal" cmd /k "cd apps\admin-web && npm install && npm run dev"
+start "Customer Portal" cmd /k "cd apps\customer-web && npm install &&npm run dev"
 
 echo.
 echo Both frontends are booting up in separate windows!
