@@ -27,7 +27,22 @@ The system is split into multiple primary layers:
 - **Observability**: Prometheus, Grafana
 
 ## Quick Start
-To get started with the development environment:
+To get started with the development environment, you can use the automated scripts or start services manually.
+
+### Automated Startup (Windows)
+We provide batch scripts to easily boot up the entire system.
+1. **Boot up Infrastructure**:
+   Navigate to `infrastructure/docker` and start the containers:
+   ```powershell
+   docker compose up -d --build
+   ```
+2. **Start Backend Services**:
+   Double-click `start-backend.bat` in the root folder. This opens 5 windows and starts all microservices simultaneously.
+3. **Start Web Apps**:
+   Double-click `start-frontend.bat` in the root folder. This starts both the Admin and Customer portals.
+
+### Manual Startup
+If you prefer to start services individually:
 
 1. **Boot up Backend Infrastructure**:
    Navigate to `infrastructure/docker` and start the containers (Database, Redis, Keycloak, Vault, Kafka):

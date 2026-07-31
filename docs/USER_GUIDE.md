@@ -2,6 +2,17 @@
 
 Welcome to the Aegis Finance system! This guide will walk you through the key features of the mobile application and the web portals (Customer & Admin).
 
+## 🚀 Getting Started (Starting the System)
+
+Before using the apps, you need to ensure the system is running.
+
+**Automated Startup (Windows Only):**
+1. Ensure your Docker infrastructure is running (`docker-compose up -d` in `infrastructure/docker`).
+2. Double-click `start-backend.bat` in the root folder to start all microservices.
+3. Double-click `start-frontend.bat` in the root folder to start both web portals.
+
+*(If you prefer the manual method, refer to the README.md for instructions on running each service individually via terminal commands).*
+
 ## Part 1: Mobile Application (Flutter)
 
 ## 1. Logging In
