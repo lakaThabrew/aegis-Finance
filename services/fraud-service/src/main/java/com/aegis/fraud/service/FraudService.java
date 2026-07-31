@@ -32,7 +32,7 @@ public class FraudService {
         int riskScore = 10;
         List<String> reasons = new ArrayList<>();
 
-        // Basic Rules Engine
+        // Risk policy using transaction values supplied by core banking.
         if (request.getAmount().compareTo(new BigDecimal("10000")) > 0) {
             riskScore += 65;
             reasons.add("Large transaction amount");
@@ -42,6 +42,11 @@ public class FraudService {
             riskScore += 20;
             reasons.add("Exceptionally large transaction amount");
         }
+        if (request.getSenderBalance() != null && request.getSenderBalance().signum() > 0
+                && request.getAmount().divide(request.getSenderBalance(), 4, java.math.RoundingMode.HALF_UP).compareTo(new BigDecimal("0.80")) >= 0) {
+            riskScore += 25;
+            reasons.add("Transfer consumes most of available balance");
+        }
 
         // Call Python ML Engine
         try {
@@ -50,11 +55,12 @@ public class FraudService {
             Map<String, Object> mlRequest = new HashMap<>();
             mlRequest.put("transactionReference", request.getTransactionReference());
             mlRequest.put("amount", request.getAmount().doubleValue());
-            // Since we only have limited info in current DTO, mock balance features for ML payload
-            mlRequest.put("oldbalanceOrg", 15000.0);
-            mlRequest.put("newbalanceOrig", 15000.0 - request.getAmount().doubleValue());
-            mlRequest.put("oldbalanceDest", 5000.0);
-            mlRequest.put("newbalanceDest", 5000.0 + request.getAmount().doubleValue());
+            double senderBalance = request.getSenderBalance() == null ? 0.0 : request.getSenderBalance().doubleValue();
+            double receiverBalance = request.getReceiverBalance() == null ? 0.0 : request.getReceiverBalance().doubleValue();
+            mlRequest.put("oldbalanceOrg", senderBalance);
+            mlRequest.put("newbalanceOrig", senderBalance - request.getAmount().doubleValue());
+            mlRequest.put("oldbalanceDest", receiverBalance);
+            mlRequest.put("newbalanceDest", receiverBalance + request.getAmount().doubleValue());
 
             HttpHeaders headers = new HttpHeaders();
             headers.setContentType(MediaType.APPLICATION_JSON);

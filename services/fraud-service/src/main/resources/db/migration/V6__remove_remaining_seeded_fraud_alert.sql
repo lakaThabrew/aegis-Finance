@@ -1,0 +1,2 @@
+DELETE FROM fraud_results
+WHERE id = 'd4444444-d444-d444-d444-d44444444444';

@@ -36,9 +36,14 @@ We provide batch scripts to easily boot up the entire system.
    ```powershell
    docker compose up -d --build
    ```
-2. **Start Backend Services**:
+2. **Inject Vault Secrets**:
+   After the containers start, inject the database password into Vault:
+   ```powershell
+   docker exec -e VAULT_TOKEN=root -e VAULT_ADDR=http://127.0.0.1:8200 aegis-vault vault kv put secret/application db.password=password
+   ```
+3. **Start Backend Services**:
    Double-click `start-backend.bat` in the root folder. This opens 5 windows and starts all microservices simultaneously.
-3. **Start Web Apps**:
+4. **Start Web Apps**:
    Double-click `start-frontend.bat` in the root folder. This starts both the Admin and Customer portals.
 
 ### Manual Startup
@@ -47,32 +52,44 @@ If you prefer to start services individually:
 1. **Boot up Backend Infrastructure**:
    Navigate to `infrastructure/docker` and start the containers (Database, Redis, Keycloak, Vault, Kafka):
    ```powershell
-   docker-compose up -d
+   docker compose up -d
    ```
-2. **Run Microservices** (Locally):
+2. **Inject Vault Secrets**:
+   After the containers start, inject the database password into Vault:
+   ```powershell
+   docker exec -e VAULT_TOKEN=root -e VAULT_ADDR=http://127.0.0.1:8200 aegis-vault vault kv put secret/application db.password=password
+   ```
+3. **Run Microservices** (Locally):
    Navigate to each service directory (`services/identity-service`, `services/core-banking`, `services/api-gateway`, etc.) and run:
    ```powershell
    ./mvnw spring-boot:run
    ```
-3. **Run Fraud ML Engine**:
+4. **Run Fraud ML Engine**:
    Navigate to `services/fraud-ml-engine`, install dependencies and run the engine:
    ```powershell
    pip install -r requirements.txt
    python app.py
    ```
-4. **Run Web Apps**:
+5. **Run Web Apps**:
    Navigate to `apps/customer-web` and `apps/admin-web`, then run:
    ```powershell
    npm install
    npm run dev
    ```
-5. **Run Flutter App**:
+6. **Run Flutter App**:
    Ensure you have configured `apps/aegis_mobile/.env` with your API URLs and Gemini API key.
    ```powershell
    cd apps/aegis_mobile
    flutter pub get
    flutter run
    ```
+
+## Demo Login Credentials
+
+Use the following Keycloak account for the customer portal at `http://localhost:5173`:
+
+- **Email:** `you@aegis.finance`
+- **Password:** `password123`
 
 ## Documentation
 - [User Guide](docs/user_guide.md) - Instructions for end users.
