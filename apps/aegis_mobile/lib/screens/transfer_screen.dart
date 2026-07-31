@@ -16,8 +16,8 @@ class _TransferScreenState extends State<TransferScreen> {
   String? _fromAccount;
   String? _fromAccountRaw;
   List<Map<String, dynamic>> _accounts = [];
-  
-  String _beneficiary = 'Ava Hassan';
+  List<Map<String, dynamic>> _beneficiaries = [];
+  String? _beneficiaryAccount;
   String _purpose = 'General transfer';
 
   @override
@@ -27,7 +27,9 @@ class _TransferScreenState extends State<TransferScreen> {
   }
 
   Future<void> _loadAccounts() async {
-    final data = await ApiService().getDashboardData();
+    final results = await Future.wait([ApiService().getDashboardData(), ApiService().getBeneficiaries()]);
+    final data = results[0] as Map<String, dynamic>;
+    final beneficiaries = results[1] as List<Map<String, dynamic>>;
     if (!mounted) return;
     setState(() {
       _accounts = List<Map<String, dynamic>>.from(data['accounts'] ?? []);
@@ -35,6 +37,8 @@ class _TransferScreenState extends State<TransferScreen> {
         _fromAccount = _accounts.first['number'];
         _fromAccountRaw = _accounts.first['rawNumber'];
       }
+      _beneficiaries = beneficiaries;
+      if (beneficiaries.isNotEmpty) _beneficiaryAccount = beneficiaries.first['beneficiaryAccountNumber']?.toString();
       _isLoadingAccounts = false;
     });
   }
@@ -46,7 +50,7 @@ class _TransferScreenState extends State<TransferScreen> {
   }
 
   Future<void> _processTransfer() async {
-    if (_fromAccountRaw == null) return;
+    if (_fromAccountRaw == null || _beneficiaryAccount == null) return;
     
     double? amount = double.tryParse(_amountController.text);
     if (amount == null || amount <= 0) {
@@ -56,10 +60,7 @@ class _TransferScreenState extends State<TransferScreen> {
 
     setState(() => _isProcessing = true);
     
-    // For demo, we are transferring to a hardcoded beneficiary account ID or just a dummy one
-    String dummyBeneficiaryAccount = "1234567890"; // In real app, fetch from beneficiary list
-    
-    bool success = await ApiService().processTransfer(_fromAccountRaw!, dummyBeneficiaryAccount, amount);
+    bool success = await ApiService().processTransfer(_fromAccountRaw!, _beneficiaryAccount!, amount);
     
     if (!mounted) return;
     setState(() => _isProcessing = false);
@@ -106,7 +107,14 @@ class _TransferScreenState extends State<TransferScreen> {
                     ),
                   const SizedBox(height: 18),
                   _label('To beneficiary'),
-                  _select(value: _beneficiary, icon: Icons.person_outline_rounded, options: const ['Ava Hassan', 'Mohamed Khan'], onChanged: (v) => setState(() => _beneficiary = v!)),
+                  if (_isLoadingAccounts)
+                    const Center(child: CircularProgressIndicator())
+                  else if (_beneficiaries.isEmpty)
+                    const Text('Add a beneficiary in the web app before transferring.', style: TextStyle(color: Colors.white60))
+                  else
+                    _select(value: _beneficiaryAccount!, icon: Icons.person_outline_rounded, options: _beneficiaries.map((beneficiary) => beneficiary['beneficiaryAccountNumber'].toString()).toList(), onChanged: (v) => setState(() => _beneficiaryAccount = v!)),
+                  if (_beneficiaryAccount != null)
+                    Padding(padding: const EdgeInsets.only(top: 6), child: Text(_beneficiaries.firstWhere((beneficiary) => beneficiary['beneficiaryAccountNumber'].toString() == _beneficiaryAccount)['beneficiaryName'].toString(), style: const TextStyle(color: Colors.white54, fontSize: 12))),
                   const SizedBox(height: 18),
                   _label('Amount'),
                   TextField(
@@ -136,7 +144,7 @@ class _TransferScreenState extends State<TransferScreen> {
                 : AegisPrimaryButton(
                     label: 'Review transfer', 
                     icon: Icons.arrow_forward_rounded, 
-                    onPressed: (_accounts.isEmpty || _isLoadingAccounts) ? () {} : _processTransfer
+                    onPressed: (_accounts.isEmpty || _beneficiaries.isEmpty || _isLoadingAccounts) ? () {} : _processTransfer
                   ),
             ]),
           ),

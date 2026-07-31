@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:google_generative_ai/google_generative_ai.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import '../services/api_service.dart';
+import 'package:flutter_markdown/flutter_markdown.dart';
 
 class AiAssistantScreen extends StatefulWidget {
   const AiAssistantScreen({super.key});
@@ -48,7 +49,7 @@ class _AiAssistantScreenState extends State<AiAssistantScreen> {
 
     try {
       final apiKey = dotenv.env['GEMINI_API_KEY'];
-      if (apiKey == null || apiKey == 'YOUR_GEMINI_API_KEY_HERE') {
+      if (apiKey == null) {
         throw Exception('API key not found');
       }
       final modelsToTry = ['gemini-3.6-flash', 'gemini-3.1-pro', 'gemini-2.5-pro', 'gemini-1.5-pro'];
@@ -249,7 +250,16 @@ class _AiAssistantScreenState extends State<AiAssistantScreen> {
           ),
           border: isUser ? null : Border.all(color: Colors.white.withOpacity(0.08)),
         ),
-        child: Text(text, style: const TextStyle(color: Colors.white, fontSize: 14, height: 1.5)),
+        child: isUser 
+            ? Text(text, style: const TextStyle(color: Colors.white, fontSize: 14, height: 1.5))
+            : MarkdownBody(
+                data: text,
+                styleSheet: MarkdownStyleSheet(
+                  p: const TextStyle(color: Colors.white, fontSize: 14, height: 1.5),
+                  listBullet: const TextStyle(color: Colors.white),
+                  strong: const TextStyle(fontWeight: FontWeight.bold),
+                ),
+              ),
       ),
     );
   }

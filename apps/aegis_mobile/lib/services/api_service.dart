@@ -143,6 +143,18 @@ class ApiService {
     }
   }
 
+  Future<List<Map<String, dynamic>>> getBeneficiaries() async {
+    try {
+      final response = await _client.get(Uri.parse('$_coreBankingUrl/beneficiaries'));
+      if (response.statusCode != 200) return [];
+      final data = jsonDecode(response.body) as List<dynamic>;
+      return data.map((item) => Map<String, dynamic>.from(item as Map)).toList();
+    } catch (e) {
+      print('Error fetching beneficiaries: $e');
+      return [];
+    }
+  }
+
   Future<bool> processQrPayment(String merchantId, double amount) async {
     try {
       final accountsResponse = await _client.get(Uri.parse('$_coreBankingUrl/accounts'));
