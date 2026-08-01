@@ -62,8 +62,11 @@ export default function FundTransferPage() {
       setAmount('');
       setReceiverAccount('');
     } catch (err: any) {
-      console.error(err);
-      setError(err.response?.data?.message || 'Transfer failed. Please check balance and try again.');
+      if (err.response?.status === 409) {
+        setError('Transfer failed: One or both accounts involved are currently frozen or inactive.');
+      } else {
+        setError(err.response?.data?.message || 'Transfer failed. Please check balance and try again.');
+      }
     } finally {
       setSubmitting(false);
     }

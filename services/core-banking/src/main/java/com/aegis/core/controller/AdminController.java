@@ -8,7 +8,9 @@ import com.aegis.core.repository.AccountRepository;
 import com.aegis.core.repository.OutboxEventRepository;
 import com.aegis.core.repository.TransactionRepository;
 import com.aegis.core.repository.SecurityEventRepository;
+import com.aegis.core.repository.CardRepository;
 import com.aegis.core.service.TransactionService;
+import com.aegis.core.entity.Card;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
@@ -29,17 +31,20 @@ public class AdminController {
     private final OutboxEventRepository outboxEventRepository;
     private final AccountRepository accountRepository;
     private final SecurityEventRepository securityEventRepository;
+    private final CardRepository cardRepository;
 
     public AdminController(TransactionRepository transactionRepository,
                            TransactionService transactionService,
                            OutboxEventRepository outboxEventRepository,
                            AccountRepository accountRepository,
-                           SecurityEventRepository securityEventRepository) {
+                           SecurityEventRepository securityEventRepository,
+                           CardRepository cardRepository) {
         this.transactionRepository = transactionRepository;
         this.transactionService = transactionService;
         this.outboxEventRepository = outboxEventRepository;
         this.accountRepository = accountRepository;
         this.securityEventRepository = securityEventRepository;
+        this.cardRepository = cardRepository;
     }
 
     @GetMapping("/stats")
@@ -117,5 +122,10 @@ public class AdminController {
     @GetMapping("/accounts")
     public ResponseEntity<List<Account>> getAccounts() {
         return ResponseEntity.ok(accountRepository.findAll());
+    }
+
+    @GetMapping("/cards")
+    public ResponseEntity<List<Card>> getCards() {
+        return ResponseEntity.ok(cardRepository.findAll());
     }
 }
